@@ -20,21 +20,27 @@ The earlier approximate coordinate 58.05628° N, 7.72948° E matches this point.
 
 ## Terrain
 
-- Service: [WCS national DTM, UTM zone 32](https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832?service=WCS&version=1.0.0&request=GetCapabilities)
-- Requested coverage: `nhm_dtm_topo_25832`
-- Catalogue: [Nasjonal høydemodell Digital terrengmodell 25832 WCS](https://kartkatalog.geonorge.no/metadata/uuid/05821c51-2f5b-411f-9098-924d13dbea9a)
-- Dataset: [Høydedata - laser](https://kartkatalog.geonorge.no/metadata/uuid/f297e948-8a34-4e6c-9740-54b3a657f8d5)
-- Licence statement in Geonorge: open data, no conditions apply to access and use. This site still credits © Kartverket.
-- File: `data/raw/dtm.tif` (1,508,662 bytes)
-- SHA-256: `e504ba4b12ba43e825c1c447673837b8b5d67ec9262ea0cca41bca63223b8141`
-- Grid: 600 × 600 cells, 1 m, cell-centre registration, GeoTIFF tag `AREA_OR_POINT=Area`
-- Bounding box, EPSG:25832: easting 424721–425321, northing 6435382–6435982
-- Horizontal datum: ETRS89 / UTM zone 32N (EPSG:25832)
-- Vertical datum: NN2000 height (EPSG:5941), taken from the project metadata code 5941 and confirmed with the EPSG registry name
-- The GeoTIFF has no nodata tag. Elevations in the file run from −0.41 m to 57.45 m.
-- Exact value 0.0 occurs on 150,563 cells. 150,551 of those connect to the edge of the extract and are stored as NaN and drawn as sea. 12 inland zeros were filled from neighbouring measured cells. The raw TIFF is unchanged.
-- Bilinear sample at the address: 3.56 m NN2000. That is a sample of the 1 m grid, not a surveyed spot height.
-- Measured cells inside the registered parcel: about −0.14 m to 8.29 m. 128 sea-coded cells fall inside the polygon, along the shore.
+- Source: Kartverket høydedata DTM ImageServer, Søgne 2013, `LAS_PROJECT_ID=30`, primary raster `CATEGORY=1`
+- Export: `exportImage`, Float32, nearest neighbour, `rasterFunction` None, mosaic filter `LAS_PROJECT_ID=30 AND CATEGORY=1`
+- This is the project DTM at its native 0.5 m cell size. It is not a resample or upsample of the national 1 m WCS (`nhm_dtm_topo_25832`)
+- Project metadata, retrieved 7 November 2026: resolution 0.5 m, horizontal EPSG:25832, vertical code 5941 (NN2000), last flight 2013-04-30, ordered density 3 points/m², natural-neighbour DTM, commissioner Kartverket, `BEST_OPEN=1`, `TILGANG=1`
+- The ordered density is the project specification, not a count of ground returns at this parcel, and the 0.5 m spacing is the grid resolution. Neither number is a vertical accuracy
+- Viewer window, outer cell edges, EPSG:25832: easting 424894–425131, northing 6435574–6435812. Same extent as the previous 1 m window. Native cell centres are at *.25 / *.75, 0.25 m from the old 1 m centres, and were not snapped onto those centres
+- GeoTIFF tag `AREA_OR_POINT=Area`. Cell centre is half a pixel in from the corner. No extra half-pixel shift is applied
+- The GeoTIFF has no nodata tag. Exact 0.0 cells that touch the edge of the window are stored as NaN and drawn as sea. Other samples, including negative shore values, are kept
+- Bilinear sample at the address is a sample of this grid, not a surveyed spot height
+
+### Access labels
+
+Checked 7 November 2026, without logging in:
+
+- [ProjectMetadata.ashx](https://hoydedata.no/LaserServices/REST/ProjectMetadata.ashx) for “Søgne 2013” returns `TILGANG` `"1"`
+- The [høydedata FAQ](https://test.hoydedata.no/LaserInnsyn2/help_no/topics/idh-topic230.htm) says to read `TILGANG` from that call, and that `"2"` means the project is closed and cannot be downloaded
+- DTM ImageServer catalogue row OBJECTID 1924, the primary 0.5 m raster named Søgne 2013, returns `TILGANG` `"2"`. The overview tiles for the same project do too
+- The same day, NDH 2018 projects with project `TILGANG` `"1"` also have raster `TILGANG` `"1"`. Kristiansand 2020 is `"2"` on both. Søgne 2013 is the mismatch
+- The export URL returns a GeoTIFF with no token. That shows the service does not enforce the raster flag. It is not a licence
+
+The owner directed this viewer to publish the grid for cabin planning. The two official labels still disagree. Publishing it does not resolve that conflict and is not a definitive licence clearance. © Kartverket.
 
 ### Which laser project
 
@@ -47,7 +53,7 @@ Project polygons come from [Høydedata metadata prosjekt WFS](https://wfs.geonor
 | Kristiansand 2020 | 2020-04-06 | 5 points/m² | 0 | Flagged BEST=1 but not BEST_OPEN. Not downloaded. |
 | Bilde Agder og Telemark 2021 Del 8 av 8 | 2021-01-01 | 4 points/m² | 0 | Image-matching point cloud, not the open DTM used here. |
 
-The WCS grid does not stamp a project id on each cell. Søgne 2013 is the acquisition this viewer attributes because it is the only intersecting project with `BEST_OPEN=1`.
+The viewer grid is filtered to Søgne 2013 only. It is not a blend with Trysnes 2010, Kristiansand 2020, or the image-matching projects.
 
 The point-height API `https://ws.geonorge.no/hoyde/v1/punkt` returned HTTP 403 from the build environment, so the address height is the DTM sample above.
 
@@ -105,8 +111,8 @@ Three.js is right-handed and Y-up. East × up is south, not north, so storing wo
 
 The parcel and the terrain use the same local metres. In map space, 62 of 66 parcel vertices are within 8 m of a DTM zero cell (median distance 0 m), and about 90% of the polygon is on land. The address point is inside the polygon. That is registration, not a second axis swap. The water edge is the Matrikkelen helper line `Hjelpelinje vannkant`; it follows the DTM water closely on this teig, with a fringe of sea cells inside the polygon.
 
-Checked on this extract, 80 m from 425021.002 E, 6435682.001 N: north is sea (0.0 m), south is 9.86 m, west is 6.21 m, and east is 3.37 m.
+Checked on the native 0.5 m grid, the cell nearest 80 m from 425021.002 E, 6435682.001 N: north is sea (0.0 m), south is about 9.0 m, west is about 6.4 m, and east is about 3.5 m. These are grid samples, not surveyed spot heights, and they are not an accuracy statement.
 
 ## Processing
 
-`scripts/fetch_scene.py` does the downloads and the coordinate conversion. Heights in the viewer are metres. Local x is east and local z is north, both in metres from the south-west cell centre of the grid (424721.5 E, 6435382.5 N). Vertical exaggeration is a display scale and defaults to 1.
+`scripts/fetch_scene.py` does the downloads and the coordinate conversion. Heights in the viewer are metres. Local x is east and local z is north, both in metres from the south-west cell centre of the 0.5 m grid (424894.25 E, 6435574.25 N). Vertical exaggeration is a display scale and defaults to 1.

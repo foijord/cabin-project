@@ -13,7 +13,7 @@ async function main() {
   try {
     setStatus("Fetching the Kartverket terrain extract…");
     const scene = await fetchJson<Scene>(`${base}data/scene.json`);
-    setStatus("Reading the 1 m elevation grid…");
+    setStatus("Reading the 0.5 m elevation grid…");
     const gridBuffer = await fetchBuffer(`${base}data/${scene.terrain.binary}`);
     const grid = new Float32Array(gridBuffer);
     const expected = scene.terrain.width * scene.terrain.height;
@@ -97,12 +97,12 @@ function fillPanel(scene: Scene) {
   if (sources) {
     const when = scene.generatedAt.slice(0, 10);
     sources.innerHTML = `
-      <p><strong>Terrain.</strong> Kartverket national bare-earth DTM, coverage <code>nhm_dtm_topo_25832</code>, 1 m cell centres, downloaded ${when}. Horizontal ${escapeHtml(scene.terrain.crsName)} (${escapeHtml(scene.terrain.crs)}). Vertical ${escapeHtml(scene.terrain.verticalDatum)} (${escapeHtml(scene.terrain.verticalDatumEpsg)}). Land in this extract runs from ${scene.terrain.minLandM} m to ${scene.terrain.maxLandM} m. ${scene.terrain.seaCellCount.toLocaleString("en-GB")} edge-connected cells were exactly 0 and are drawn as sea. ${scene.terrain.inlandZeroCellsFilled} inland zeros were filled from neighbouring measured cells.</p>
-      <p><strong>Acquisition.</strong> The only height project polygon flagged <code>BEST_OPEN=1</code> here is Søgne 2013, last flight 30 April 2013, ordered density 3 points/m², natural-neighbour DTM. The WCS grid does not stamp a project id on each cell. Kristiansand 2020 intersects the point but is not flagged as the open model and was not downloaded separately.</p>
+      <p><strong>Terrain.</strong> Søgne 2013 project DTM, Kartverket laser project 30, native ${scene.terrain.cellSizeM} m cells, nearest-neighbour export, downloaded ${when}. This is not a resample of the national 1 m model. Last flight 30 April 2013. Ordered density 3 points/m². The ${scene.terrain.cellSizeM} m spacing is the grid resolution, not a surveyed accuracy. Horizontal ${escapeHtml(scene.terrain.crsName)} (${escapeHtml(scene.terrain.crs)}). Vertical ${escapeHtml(scene.terrain.verticalDatum)} (${escapeHtml(scene.terrain.verticalDatumEpsg)}). Land in this window runs from ${scene.terrain.minLandM} m to ${scene.terrain.maxLandM} m. ${scene.terrain.seaCellCount.toLocaleString("en-GB")} edge-connected cells were exactly 0 and are drawn as sea. ${scene.terrain.inlandZeroCellsFilled} inland zeros were filled from neighbouring measured cells.</p>
+      <p><strong>Acquisition.</strong> The grid is filtered to Søgne 2013, laser project 30, the intersecting project flagged <code>BEST_OPEN=1</code>. Last flight 30 April 2013, ordered density 3 points/m², natural-neighbour DTM. Kristiansand 2020 also intersects the point and was not used.</p>
       <p><strong>Address.</strong> Kartverket address API, one hit for Kalsneset 27. ${property.lat.toFixed(6)}° N, ${property.lon.toFixed(6)}° E in ${escapeHtml(scene.terrain.geographicCrsName)}. Register id ${escapeHtml(property.adresseid)}. Position verified: ${property.stedfestingVerifisert ? "yes" : "no"}.</p>
       <p><strong>Parcel.</strong> Matrikkelen eiendomskart teig, id ${escapeHtml(teig.teigId)}. datafangstdato ${escapeHtml(teig.datafangstdato ?? "not stated")}. Updated ${escapeHtml(teig.oppdateringsdato ?? "not stated")}. Neighbouring lines are the other teigs returned for this extract. No owner names are shown.</p>
       <p><strong>Buildings and photos.</strong> Open data here is building points, not outlines. FKB-Bygning footprints and Norge i bilder orthophotos are under the Norge digitalt licence and are not included. The published INSPIRE building WFS returned “unknown application” on ${when}. Nothing in the model is a measured roof height.</p>
-      <p><strong>Licence.</strong> Height data is published as open data with no conditions on access and use. Address, parcel and building points are CC BY 4.0. © Kartverket.</p>
+      <p><strong>Licence.</strong> Address, parcel and building points are CC BY 4.0. The terrain is © Kartverket, Søgne 2013. Project metadata marks that project TILGANG 1. The raster catalogue row for the same 0.5 m grid marks TILGANG 2, which the høydedata FAQ describes as closed. Those labels disagree, so this grid is not treated as cleared open data. © Kartverket.</p>
     `;
   }
 }
