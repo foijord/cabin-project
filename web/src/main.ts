@@ -5,6 +5,7 @@ import { createViewer, type Viewer } from "./viewer";
 const base = import.meta.env.BASE_URL;
 
 async function main() {
+  wirePanelToggle();
   const loader = document.querySelector<HTMLElement>("#loader");
   const error = document.querySelector<HTMLElement>("#error");
   const canvas = document.querySelector<HTMLCanvasElement>("#view");
@@ -104,6 +105,23 @@ function fillPanel(scene: Scene) {
       <p><strong>Licence.</strong> Height data is published as open data with no conditions on access and use. Address, parcel and building points are CC BY 4.0. © Kartverket.</p>
     `;
   }
+}
+
+function wirePanelToggle() {
+  const button = document.querySelector<HTMLButtonElement>("#panel-toggle");
+  const body = document.querySelector<HTMLElement>("#panel-body");
+  const sync = () => {
+    const collapsed = document.documentElement.classList.contains("panel-collapsed");
+    if (body) body.hidden = collapsed;
+    if (!button) return;
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    button.textContent = collapsed ? "Info" : "Close";
+  };
+  button?.addEventListener("click", () => {
+    document.documentElement.classList.toggle("panel-collapsed");
+    sync();
+  });
+  sync();
 }
 
 function wireControls(viewer: Viewer) {

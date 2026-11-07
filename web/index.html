@@ -10,11 +10,28 @@
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      if (window.matchMedia("(max-width: 800px)").matches) {
+        document.documentElement.classList.add("panel-collapsed");
+      }
+    </script>
   </head>
   <body>
     <div id="app">
       <canvas id="view" aria-label="Three-dimensional terrain model"></canvas>
       <aside class="panel" id="panel">
+        <div class="panel-bar">
+          <button id="panel-toggle" type="button" aria-controls="panel-body" aria-expanded="false">Info</button>
+        </div>
+        <script>
+          (function () {
+            var collapsed = document.documentElement.classList.contains("panel-collapsed");
+            var toggle = document.getElementById("panel-toggle");
+            toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+            toggle.textContent = collapsed ? "Info" : "Close";
+          })();
+        </script>
+        <div id="panel-body">
         <div id="facts"></div>
         <section class="controls">
           <div class="row">
@@ -53,6 +70,7 @@
           <summary>Sources, datum and accuracy</summary>
           <div id="sources" class="sources"></div>
         </details>
+        </div>
       </aside>
       <div class="hud">
         <div id="north" class="north" title="North">
