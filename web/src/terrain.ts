@@ -135,6 +135,7 @@ export function buildTerrain(grid: Float32Array, scene: Scene): TerrainBundle {
       const water = !Number.isFinite(elevation);
       const y = water ? 0 : elevation;
       baseY[index] = y;
+      // Column increases east. Row 0 is the northern GeoTIFF row, so z increases north.
       positions[index * 3] = col;
       positions[index * 3 + 1] = y;
       positions[index * 3 + 2] = height - 1 - row;

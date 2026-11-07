@@ -44,14 +44,17 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   renderer.setClearColor(0xc5d5da, 1);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xc5d5da, 240, 980);
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.4, 4000);
+  const span = Math.max(width, height);
+  // Fog starts beyond the far side of the model, so an overview stays clear.
+  scene.fog = new THREE.Fog(0xc5d5da, span * 2.4, span * 3.6);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.35, 2500);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
+  controls.minPolarAngle = 0.08;
   controls.maxPolarAngle = Math.PI * 0.48;
-  controls.minDistance = 16;
-  controls.maxDistance = 1200;
+  controls.minDistance = 12;
+  controls.maxDistance = span * 2.6;
   controls.screenSpacePanning = true;
 
   const terrain: TerrainBundle = buildTerrain(grid, sceneData);
@@ -81,6 +84,8 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   buildingGroup.name = "buildings";
   scene.add(buildingGroup);
   const markers = addBuildings(sceneData, buildingGroup);
+  const northMarker = addNorthMarker(grid, width, height);
+  scene.add(northMarker.object);
 
   const northArrow = document.querySelector<HTMLElement>("#north-arrow");
   const scaleBar = document.querySelector<HTMLElement>("#scale-bar");
@@ -108,6 +113,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     for (const marker of markers) {
       marker.object.position.y = marker.base * exaggeration;
     }
+    northMarker.object.position.y = northMarker.base * exaggeration + 0.8;
     controls.target.y = (sceneData.property.terrainM ?? 4) * exaggeration;
   }
 
@@ -127,15 +133,21 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   function frameProperty() {
     const y = (sceneData.property.terrainM ?? 4) * exaggeration;
     controls.target.set(sceneData.property.x, y, sceneData.property.z);
-    camera.position.set(sceneData.property.x + 48, y + 38, sceneData.property.z - 72);
+    // South of the cabin, on the land side, looking north toward the fjord.
+    camera.position.set(sceneData.property.x - 8, y + 36, sceneData.property.z - 62);
     camera.lookAt(controls.target);
     controls.update();
   }
 
   function frameContext() {
-    const y = 12 * exaggeration;
-    controls.target.set((width - 1) / 2, y, (height - 1) / 2);
-    camera.position.set(width * 0.78, 150 + 40 * exaggeration, -40);
+    const y = (sceneData.property.terrainM ?? 4) * exaggeration;
+    controls.target.set(sceneData.property.x, y, sceneData.property.z);
+    const distance = span * 0.92;
+    camera.position.set(
+      sceneData.property.x - span * 0.04,
+      y + distance * 0.78,
+      sceneData.property.z - distance * 0.72,
+    );
     camera.lookAt(controls.target);
     controls.update();
   }
@@ -221,7 +233,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
 
   resize();
   refreshHeights();
-  frameProperty();
+  frameContext();
   animate();
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
@@ -403,6 +415,43 @@ function buildParcelLines(
     }
   }
   return lines;
+}
+
+function addNorthMarker(
+  grid: Float32Array,
+  width: number,
+  height: number,
+): { object: THREE.Group; base: number } {
+  const x = width * 0.5;
+  const z = height - 16;
+  const base = sampleSurface(grid, width, height, x, z);
+  const group = new THREE.Group();
+  const green = new THREE.MeshBasicMaterial({ color: 0x1e6a52 });
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 12), green);
+  shaft.position.z = -2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(3.1, 7, 4), green);
+  head.rotation.x = Math.PI / 2;
+  head.position.z = 7;
+  group.add(shaft, head);
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#1e6a52";
+    context.font = "bold 84px Palatino, Georgia, serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("N", 64, 70);
+  }
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }),
+  );
+  sprite.position.set(0, 6, 8);
+  sprite.scale.set(8, 8, 1);
+  group.add(sprite);
+  group.position.set(x, base + 0.8, z);
+  return { object: group, base };
 }
 
 function addBuildings(sceneData: Scene, group: THREE.Group): Marker[] {

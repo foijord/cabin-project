@@ -135,10 +135,10 @@ function wireControls(viewer: Viewer) {
   document.querySelector("#reset-view")?.addEventListener("click", () => {
     if (exag) exag.value = "1";
     syncExaggeration();
-    viewer.frameProperty();
-  });
+viewer.frameContext();
+});
   window.addEventListener("keydown", (event) => {
-    if (event.key === "r" || event.key === "R") viewer.frameProperty();
+    if (event.key === "r" || event.key === "R") viewer.frameContext();
     if (!exag) return;
     if (event.key === "+" || event.key === "=") {
       exag.value = String(Math.min(4, Number(exag.value) + 0.5));

@@ -97,6 +97,21 @@ No roof height, storey count, or footprint is in this open extract. None is inve
 - **Zoning or regulation.** No plan map is used.
 - **Commercial satellite imagery.** None.
 
+## Orientation
+
+The GeoTIFF from the WCS is north-up: row 0 is the northern edge (`transform.e` is −1). The viewer does not flip it. Local x increases east and local z increases north.
+
+Checked on this extract, 80 m from the address point at 425021.002 E, 6435682.001 N:
+
+| Offset | Raw elevation | Meaning |
+| --- | --- | --- |
+| 80 m north | 0.0 m | Sea, stored as no measurement |
+| 80 m south | 9.86 m | Higher land |
+| 80 m west | 6.21 m | Higher than the east |
+| 80 m east | 3.37 m | Lower ground toward the water |
+
+An east-west or north-south mirror would swap those pairs. OpenStreetMap shows the same arrangement: Søviggfjorden is north of the cabin and the shore also opens to the east. That map was used only as a direction check and is not part of the model. The earlier view looked wrong because the camera stood to the east, over the water, looking inland, and fog hid the rest of the shore before the camera could zoom out.
+
 ## Processing
 
 `scripts/fetch_scene.py` does the downloads and the coordinate conversion. Heights in the viewer are metres. Local x is east and local z is north, both in metres from the south-west cell centre of the grid (424721.5 E, 6435382.5 N). Vertical exaggeration is a display scale and defaults to 1.
