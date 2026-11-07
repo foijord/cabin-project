@@ -1,0 +1,495 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { BuildingRecord, RingPolygon, Scene } from "./types";
+import {
+  applyExaggeration,
+  applyOverlayScale,
+  buildContours,
+  buildGrid,
+  buildTerrain,
+  buildWireframe,
+  sampleNearest,
+  sampleSurface,
+  type HeightOverlay,
+  type TerrainBundle,
+} from "./terrain";
+
+export interface Viewer {
+  setExaggeration(value: number): void;
+  setRelief(enabled: boolean): void;
+  setContours(enabled: boolean, interval: number): void;
+  setWireframe(enabled: boolean): void;
+  setGrid(enabled: boolean): void;
+  setParcels(enabled: boolean): void;
+  setBuildings(enabled: boolean): void;
+  frameProperty(): void;
+  frameContext(): void;
+  dispose(): void;
+}
+
+interface Marker {
+  object: THREE.Object3D;
+  building: BuildingRecord;
+  base: number;
+}
+
+const CLAY = new THREE.Color("#cbbfaa");
+
+export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: Float32Array): Viewer {
+  const width = sceneData.terrain.width;
+  const height = sceneData.terrain.height;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0xc5d5da, 1);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xc5d5da, 240, 980);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.4, 4000);
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI * 0.48;
+  controls.minDistance = 16;
+  controls.maxDistance = 1200;
+  controls.screenSpacePanning = true;
+
+  const terrain: TerrainBundle = buildTerrain(grid, sceneData);
+  scene.add(terrain.mesh);
+  const gridOverlay = buildGrid(grid, width, height);
+  scene.add(gridOverlay.line);
+
+  let contours: HeightOverlay | null = null;
+  let contourInterval = 5;
+  let wire: HeightOverlay | null = null;
+  let exaggeration = 1;
+
+  const parcelGroup = new THREE.Group();
+  parcelGroup.name = "parcels";
+  scene.add(parcelGroup);
+  const subjectFill = buildParcelFill(sceneData.teig.polygons, grid, width, height);
+  parcelGroup.add(subjectFill);
+  const subjectRibbon = buildBoundaryRibbon(sceneData.teig.polygons, grid, width, height, 0x9a3e16, 0.55, 0.85);
+  parcelGroup.add(subjectRibbon);
+  const subjectLines = buildParcelLines(sceneData.teig.polygons, grid, width, height, 0xf6f1e8, 1.15);
+  const contextLines = sceneData.contextParcels.flatMap((parcel) =>
+    buildParcelLines(parcel.polygons, grid, width, height, 0xf3ecdf, 0.35),
+  );
+  for (const line of [...subjectLines, ...contextLines]) parcelGroup.add(line);
+
+  const buildingGroup = new THREE.Group();
+  buildingGroup.name = "buildings";
+  scene.add(buildingGroup);
+  const markers = addBuildings(sceneData, buildingGroup);
+
+  const northArrow = document.querySelector<HTMLElement>("#north-arrow");
+  const scaleBar = document.querySelector<HTMLElement>("#scale-bar");
+  const scaleLabel = document.querySelector<HTMLElement>("#scale-label");
+  const readout = document.querySelector<HTMLElement>("#readout");
+
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    renderer.setSize(rect.width, rect.height, false);
+    camera.aspect = rect.width / Math.max(rect.height, 1);
+    camera.updateProjectionMatrix();
+  }
+
+  function refreshHeights() {
+    applyExaggeration(terrain.mesh, terrain.baseY, exaggeration);
+    applyOverlayScale(gridOverlay, exaggeration);
+    if (contours) applyOverlayScale(contours, exaggeration);
+    if (wire) applyOverlayScale(wire, exaggeration);
+    drapeObject(subjectFill, exaggeration);
+    drapeObject(subjectRibbon, exaggeration);
+    for (const line of [...subjectLines, ...contextLines]) drapeObject(line, exaggeration);
+    for (const marker of markers) {
+      marker.object.position.y = marker.base * exaggeration;
+    }
+    controls.target.y = (sceneData.property.terrainM ?? 4) * exaggeration;
+  }
+
+  function ensureContours(interval: number) {
+    if (contours && contourInterval === interval) return;
+    if (contours) {
+      scene.remove(contours.line);
+      contours.line.geometry.dispose();
+      (contours.line.material as THREE.Material).dispose();
+    }
+    contours = buildContours(grid, width, height, interval);
+    contourInterval = interval;
+    applyOverlayScale(contours, exaggeration);
+    scene.add(contours.line);
+  }
+
+  function frameProperty() {
+    const y = (sceneData.property.terrainM ?? 4) * exaggeration;
+    controls.target.set(sceneData.property.x, y, sceneData.property.z);
+    camera.position.set(sceneData.property.x + 48, y + 38, sceneData.property.z - 72);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
+
+  function frameContext() {
+    const y = 12 * exaggeration;
+    controls.target.set((width - 1) / 2, y, (height - 1) / 2);
+    camera.position.set(width * 0.78, 150 + 40 * exaggeration, -40);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
+
+  function updateHud() {
+    if (northArrow) {
+      camera.updateMatrixWorld();
+      const origin = controls.target.clone();
+      const northPoint = origin.clone().add(new THREE.Vector3(0, 0, 40));
+      origin.project(camera);
+      northPoint.project(camera);
+      const dx = northPoint.x - origin.x;
+      const dy = northPoint.y - origin.y;
+      const angle = Math.atan2(dx, dy);
+      northArrow.style.transform = `rotate(${angle}rad)`;
+    }
+    if (scaleBar && scaleLabel) {
+      const distance = camera.position.distanceTo(controls.target);
+      const metresPerPixel =
+        (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * distance) /
+        Math.max(canvas.clientHeight, 1);
+      const targetPx = 110;
+      const raw = metresPerPixel * targetPx;
+      const nice = niceLength(raw);
+      const px = nice / metresPerPixel;
+      scaleBar.style.width = `${px}px`;
+      scaleLabel.textContent = nice >= 1000 ? `${nice / 1000} km` : `${nice} m`;
+    }
+  }
+
+  function describePointer(event: PointerEvent) {
+    if (!readout) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hit = marchHeight(raycaster.ray);
+    if (!hit) {
+      readout.textContent = "Above the terrain";
+      return;
+    }
+    const nearest = sampleNearest(grid, width, height, hit.x, hit.z);
+    const easting = sceneData.terrain.westCellCenterEasting + hit.x;
+    const northing = sceneData.terrain.southCellCenterNorthing + hit.z;
+    const inside = pointInPolygons(hit.x, hit.z, sceneData.teig.polygons);
+    const place = inside ? "inside 437/109" : "outside 437/109";
+    const heightText = Number.isFinite(nearest) ? `${nearest.toFixed(1)} m NN2000` : "sea (DTM value 0)";
+    const building = nearestBuilding(hit.x, hit.z, sceneData.buildings);
+    const buildingText = building ? ` · building ${building.bygningsnummer} ${building.bygningsstatus}` : "";
+    readout.textContent = `${heightText} · ${Math.round(easting)} E, ${Math.round(northing)} N · ${place}${buildingText}`;
+  }
+
+  function marchHeight(ray: THREE.Ray): THREE.Vector3 | null {
+    const direction = ray.direction;
+    let distance = 0;
+    for (let step = 0; step < 70; step += 1) {
+      const x = ray.origin.x + direction.x * distance;
+      const y = ray.origin.y + direction.y * distance;
+      const z = ray.origin.z + direction.z * distance;
+      const inside = x >= 0 && z >= 0 && x <= width - 1 && z <= height - 1;
+      if (!inside) {
+        if (distance > 30) return null;
+        distance += 15;
+        continue;
+      }
+      const surface = sampleSurface(grid, width, height, x, z) * exaggeration;
+      if (y <= surface) return new THREE.Vector3(x, surface, z);
+      distance += Math.min(30, Math.max(1.2, (y - surface) * 0.5));
+    }
+    return null;
+  }
+
+  canvas.addEventListener("pointermove", describePointer);
+
+  let running = true;
+  function animate() {
+    if (!running) return;
+    controls.update();
+    updateHud();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  resize();
+  refreshHeights();
+  frameProperty();
+  animate();
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
+
+  return {
+    setExaggeration(value: number) {
+      const previous = exaggeration || 1;
+      const offset = camera.position.clone().sub(controls.target);
+      offset.y *= value / previous;
+      exaggeration = value;
+      refreshHeights();
+      camera.position.copy(controls.target).add(offset);
+    },
+    setRelief(enabled: boolean) {
+      const material = terrain.mesh.material as THREE.MeshBasicMaterial;
+      material.vertexColors = enabled;
+      material.color.copy(enabled ? new THREE.Color(0xffffff) : CLAY);
+      material.needsUpdate = true;
+    },
+    setContours(enabled: boolean, interval: number) {
+      if (enabled) ensureContours(interval);
+      if (contours) contours.line.visible = enabled;
+    },
+    setWireframe(enabled: boolean) {
+      if (enabled && !wire) {
+        wire = buildWireframe(grid, width, height, 10);
+        applyOverlayScale(wire, exaggeration);
+        scene.add(wire.line);
+      }
+      if (wire) wire.line.visible = enabled;
+    },
+    setGrid(enabled: boolean) {
+      gridOverlay.line.visible = enabled;
+    },
+    setParcels(enabled: boolean) {
+      parcelGroup.visible = enabled;
+    },
+    setBuildings(enabled: boolean) {
+      buildingGroup.visible = enabled;
+    },
+    frameProperty,
+    frameContext,
+    dispose() {
+      running = false;
+      observer.disconnect();
+      controls.dispose();
+      renderer.dispose();
+    },
+  };
+}
+
+function drapeObject(object: THREE.Object3D, exaggeration: number) {
+  const geometry = (object as THREE.Mesh | THREE.Line).geometry as THREE.BufferGeometry | undefined;
+  const base = object.userData.baseY as Float32Array | undefined;
+  const lift = (object.userData.lift as number | undefined) ?? 0;
+  if (!geometry || !base) return;
+  const position = geometry.getAttribute("position") as THREE.BufferAttribute;
+  for (let index = 0; index < base.length; index += 1) {
+    position.setY(index, base[index] * exaggeration + lift);
+  }
+  position.needsUpdate = true;
+}
+
+function buildParcelFill(
+  polygons: RingPolygon[],
+  grid: Float32Array,
+  width: number,
+  height: number,
+): THREE.Mesh {
+  const ring = openRing(polygons[0]?.exterior ?? []);
+  const shape = new THREE.Shape();
+  if (ring.length) {
+    shape.moveTo(ring[0][0], ring[0][1]);
+    for (const [x, z] of ring.slice(1)) shape.lineTo(x, z);
+  }
+  const geometry = new THREE.ShapeGeometry(shape);
+  geometry.rotateX(Math.PI / 2);
+  const position = geometry.getAttribute("position") as THREE.BufferAttribute;
+  const base = new Float32Array(position.count);
+  for (let index = 0; index < position.count; index += 1) {
+    base[index] = sampleSurface(grid, width, height, position.getX(index), position.getZ(index));
+    position.setY(index, base[index] + 0.55);
+  }
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xe39a4a,
+    transparent: true,
+    opacity: 0.34,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData.baseY = base;
+  mesh.userData.lift = 0.55;
+  mesh.renderOrder = 2;
+  return mesh;
+}
+
+function buildBoundaryRibbon(
+  polygons: RingPolygon[],
+  grid: Float32Array,
+  width: number,
+  height: number,
+  color: number,
+  halfWidth: number,
+  lift: number,
+): THREE.Mesh {
+  const positions: number[] = [];
+  const base: number[] = [];
+  const indices: number[] = [];
+  for (const polygon of polygons) {
+    for (const ring of [polygon.exterior, ...polygon.holes]) {
+      for (let index = 0; index < ring.length - 1; index += 1) {
+        const [x0, z0] = ring[index];
+        const [x1, z1] = ring[index + 1];
+        const dx = x1 - x0;
+        const dz = z1 - z0;
+        const length = Math.hypot(dx, dz) || 1;
+        const ox = (-dz / length) * halfWidth;
+        const oz = (dx / length) * halfWidth;
+        const e0 = sampleSurface(grid, width, height, x0, z0);
+        const e1 = sampleSurface(grid, width, height, x1, z1);
+        const start = positions.length / 3;
+        const corners: Array<[number, number, number]> = [
+          [x0 + ox, z0 + oz, e0],
+          [x0 - ox, z0 - oz, e0],
+          [x1 + ox, z1 + oz, e1],
+          [x1 - ox, z1 - oz, e1],
+        ];
+        for (const [x, z, elevation] of corners) {
+          positions.push(x, elevation + lift, z);
+          base.push(elevation);
+        }
+        indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData.baseY = Float32Array.from(base);
+  mesh.userData.lift = lift;
+  mesh.renderOrder = 3;
+  return mesh;
+}
+
+function buildParcelLines(
+  polygons: RingPolygon[],
+  grid: Float32Array,
+  width: number,
+  height: number,
+  color: number,
+  lift: number,
+): THREE.Line[] {
+  const lines: THREE.Line[] = [];
+  for (const polygon of polygons) {
+    for (const ring of [polygon.exterior, ...polygon.holes]) {
+      if (ring.length < 2) continue;
+      const positions: number[] = [];
+      const base: number[] = [];
+      for (const [x, z] of ring) {
+        const elevation = sampleSurface(grid, width, height, x, z);
+        positions.push(x, elevation + lift, z);
+        base.push(elevation);
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      const material = new THREE.LineBasicMaterial({ color });
+      const line = new THREE.Line(geometry, material);
+      line.userData.baseY = Float32Array.from(base);
+      line.userData.lift = lift;
+      line.renderOrder = 3;
+      lines.push(line);
+    }
+  }
+  return lines;
+}
+
+function addBuildings(sceneData: Scene, group: THREE.Group): Marker[] {
+  const markers: Marker[] = [];
+  for (const building of sceneData.buildings) {
+    const base = building.terrainM ?? 0;
+    const subject = building.onSubjectParcel;
+    let object: THREE.Object3D;
+    if (building.standingInRegister) {
+      const radius = subject ? 1.15 : 0.55;
+      const pole = subject ? 8 : 3.4;
+      const mesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, pole, subject ? 20 : 10),
+        new THREE.MeshBasicMaterial({ color: subject ? 0x1f6b52 : 0x8ea399 }),
+      );
+      mesh.position.y = pole / 2;
+      object = new THREE.Group();
+      object.add(mesh);
+      if (subject) {
+        const disc = new THREE.Mesh(
+          new THREE.CylinderGeometry(2.3, 2.3, 0.25, 24),
+          new THREE.MeshBasicMaterial({ color: 0xc46a32 }),
+        );
+        disc.position.y = 0.2;
+        object.add(disc);
+      }
+    } else {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(subject ? 2.4 : 1.3, subject ? 0.18 : 0.1, 8, 28),
+        new THREE.MeshBasicMaterial({ color: subject ? 0xa1623b : 0xb7a48f }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.4;
+      object = ring;
+    }
+    object.position.set(building.x, base, building.z);
+    group.add(object);
+    markers.push({ object, building, base });
+  }
+  return markers;
+}
+
+function openRing(ring: number[][]): number[][] {
+  if (ring.length > 1) {
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    if (first[0] === last[0] && first[1] === last[1]) return ring.slice(0, -1);
+  }
+  return ring;
+}
+
+function pointInRing(x: number, z: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = ring[i][0];
+    const zi = ring[i][1];
+    const xj = ring[j][0];
+    const zj = ring[j][1];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInPolygons(x: number, z: number, polygons: RingPolygon[]): boolean {
+  return polygons.some((polygon) => {
+    if (!pointInRing(x, z, polygon.exterior)) return false;
+    return !polygon.holes.some((hole) => pointInRing(x, z, hole));
+  });
+}
+
+function nearestBuilding(x: number, z: number, buildings: BuildingRecord[]): BuildingRecord | null {
+  let best: BuildingRecord | null = null;
+  let bestDistance = 8;
+  for (const building of buildings) {
+    const distance = Math.hypot(building.x - x, building.z - z);
+    if (distance < bestDistance) {
+      best = building;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function niceLength(metres: number): number {
+  const steps = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+  for (const step of steps) {
+    if (metres <= step) return step;
+  }
+  return 1000;
+}
