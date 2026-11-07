@@ -1,5 +1,5 @@
 {
-  "retrievedAt": "2026-11-07T15:54:00+00:00",
+  "retrievedAt": "2026-11-07T16:59:32+00:00",
   "address": {
     "request": "https://ws.geonorge.no/adresser/v1/sok?sok=Kalsneset+27+S%C3%B8gne&treffPerSide=5",
     "licence": "CC BY 4.0",
@@ -21,16 +21,20 @@
     "kommunenummer": "4204"
   },
   "terrain": {
-    "request": "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832?service=WCS&version=1.0.0&request=GetCoverage&coverage=nhm_dtm_topo_25832&crs=EPSG%3A25832&bbox=424721%2C6435382%2C425321%2C6435982&width=600&height=600&format=GeoTIFF",
-    "service": "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832",
-    "coverage": "nhm_dtm_topo_25832",
-    "documentation": "https://kartkatalog.geonorge.no/metadata/uuid/05821c51-2f5b-411f-9098-924d13dbea9a",
-    "dataset": "https://kartkatalog.geonorge.no/metadata/uuid/f297e948-8a34-4e6c-9740-54b3a657f8d5",
-    "licenceStatement": "Geonorge records Høydedata - laser as open data: no conditions apply to access and use.",
-    "attribution": "© Kartverket",
+    "request": "https://hoydedata.no/arcgis/rest/services/DTM/ImageServer/exportImage?f=json&bbox=424894.0%2C6435574.0%2C425131.0%2C6435812.0&bboxSR=25832&imageSR=25832&size=474%2C476&format=tiff&pixelType=F32&interpolation=RSP_NearestNeighbor&renderingRule=%7B%22rasterFunction%22%3A+%22None%22%7D&mosaicRule=%7B%22mosaicMethod%22%3A+%22esriMosaicAttribute%22%2C+%22where%22%3A+%22LAS_PROJECT_ID%3D30+AND+CATEGORY%3D1%22%7D",
+    "service": "https://hoydedata.no/arcgis/rest/services/DTM/ImageServer/exportImage",
+    "project": "Søgne 2013",
+    "lasProjectId": 30,
+    "mosaicFilter": "LAS_PROJECT_ID=30 AND CATEGORY=1",
+    "interpolation": "RSP_NearestNeighbor",
+    "nativeCellSizeM": 0.5,
+    "documentation": "https://hoydedata.no/LaserServices/REST/ProjectMetadata.ashx",
+    "dataset": "https://hoydedata.no/arcgis/rest/services/DTM/ImageServer",
+    "licenceStatement": "Published in this viewer on the owner's instruction. ProjectMetadata for Søgne 2013 returns TILGANG 1 and BEST_OPEN 1. The DTM ImageServer primary raster (OBJECTID 1924) returns TILGANG 2. The høydedata FAQ defines TILGANG 2 as closed. Other projects checked the same day have matching flags. Unauthenticated download is not permission. This note discloses the conflict. It is not a definitive licence clearance. Commissioner is Kartverket. © Kartverket.",
+    "attribution": "© Kartverket. Søgne 2013 DTM, native 0.5 m grid, flight 2013-04-30.",
     "file": "data/raw/dtm.tif",
-    "sha256": "e504ba4b12ba43e825c1c447673837b8b5d67ec9262ea0cca41bca63223b8141",
-    "bytes": 1508662,
+    "sha256": "cf5dcf43a356cb8a53168ba469f964fdf600b322788f65ecb1324f5d2445f24c",
+    "bytes": 984302,
     "crs": "EPSG:25832",
     "crsName": "ETRS89 / UTM zone 32N",
     "verticalDatum": "EPSG:5941 NN2000 height",
@@ -40,9 +44,9 @@
       425321,
       6435982
     ],
-    "width": 237,
-    "height": 238,
-    "cellSizeM": 1,
+    "width": 474,
+    "height": 476,
+    "cellSizeM": 0.5,
     "nodataTag": null,
     "geotiffTags": {
       "DataType": "Generic",
@@ -50,10 +54,10 @@
     },
     "min": NaN,
     "max": NaN,
-    "exactZeroCells": 150563,
-    "seaCellsConnectedToBorder": 22946,
+    "exactZeroCells": 90056,
+    "seaCellsConnectedToBorder": 90056,
     "inlandZeroCellsFilled": 0,
-    "addressSampleM": 3.5635204315185547,
+    "addressSampleM": 3.630406379699707,
     "projectsRequest": "https://wfs.geonorge.no/skwms1/wfs.hoyde-hoydedata-metadata-prosjekt?service=WFS&version=2.0.0&request=GetFeature&typeNames=metadata_prosjekt%3AProsjektavgrensning&srsName=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25833&bbox=71028.5%2C6457699.0%2C71828.5%2C6458499.0%2Curn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25833&count=50",
     "projects": [
       {
@@ -133,17 +137,18 @@
         "published": "published"
       }
     ],
-    "openProjectNote": "Of the project polygons containing this address, Søgne 2013 is the only one with BEST_OPEN=1. The WCS grid does not carry a per-cell project id.",
+    "openProjectNote": "This grid is the Søgne 2013 project DTM, LAS_PROJECT_ID 30, category 1, exported at native 0.5 m with nearest neighbour. It is not a resample of the national 1 m model. Ordered point density is 3/m²; that is not a measured ground density and not a vertical accuracy. Flight date 2013-04-30. Vertical datum NN2000 comes from project metadata code 5941.",
     "displayWindow": {
       "marginM": 95,
-      "sourceRow0": 170,
-      "sourceRow1": 407,
-      "sourceCol0": 173,
-      "sourceCol1": 409,
-      "sourceWidth": 600,
-      "sourceHeight": 600
+      "outerWest": 424894.0,
+      "outerSouth": 6435574.0,
+      "outerEast": 425131.0,
+      "outerNorth": 6435812.0,
+      "cellSizeM": 0.5,
+      "resampled": false,
+      "note": "Outer edges are the previous 1 m window. Native centres sit on *.25/*.75, 0.25 m from the old 1 m centres, and were not snapped onto them."
     },
-    "orientation": "Row 0 of the GeoTIFF is north. Viewer x increases east and z increases north. Checked against the same grid: 80 m north of the address is sea, 80 m south is higher land, and 80 m west is higher than 80 m east. Open water lies north and east of the cabin."
+    "orientation": "The GeoTIFF and the scene file are north-up: local x is east and local z is north. Three.js is right-handed and Y-up, so the renderer uses world Z = -local z. 80 m north of the address is sea, 80 m south is higher land, and 80 m west is higher than 80 m east."
   },
   "cadastre": {
     "request": "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-eiendomskart-teig?service=WFS&version=2.0.0&request=GetFeature&typeNames=app%3ATeig&srsName=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&bbox=424721%2C6435382%2C425321%2C6435982%2Curn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&count=500",

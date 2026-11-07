@@ -34,10 +34,11 @@ def scene_cell(scene: dict, grid: np.ndarray, easting: float, northing: float) -
         raise SystemExit(f"unexpected axes {terrain.get('axes')}")
     if terrain.get("row0") != "north":
         raise SystemExit("row 0 must be north")
+    cell = float(terrain["cellSizeM"])
     x = easting - terrain["westCellCenterEasting"]
     z = northing - terrain["southCellCenterNorthing"]
-    col = int(round(x))
-    row = int(round((grid.shape[0] - 1) - z))
+    col = int(round(x / cell))
+    row = int(round((grid.shape[0] - 1) - z / cell))
     if not (0 <= row < grid.shape[0] and 0 <= col < grid.shape[1]):
         raise SystemExit(f"control point {(easting, northing)} falls outside the view")
     return float(grid[row, col]), x, z
@@ -59,10 +60,17 @@ def main() -> None:
             raise SystemExit("GeoTIFF row 0 is not north")
         west = scene["terrain"]["westCellCenterEasting"]
         north = scene["terrain"]["northCellCenterNorthing"]
+        cell = float(scene["terrain"]["cellSizeM"])
+        if abs(cell - 0.5) > 1e-6:
+            raise SystemExit(f"expected native 0.5 m cells, got {cell}")
+        if abs(dataset.transform.a - 0.5) > 1e-6 or abs(dataset.transform.e + 0.5) > 1e-6:
+            raise SystemExit(f"GeoTIFF is not a native 0.5 m grid: {dataset.transform}")
+        if abs(west - (dataset.transform.c + 0.25)) > 1e-3:
+            raise SystemExit("scene origin is shifted from the GeoTIFF cell centre")
         for row in range(height):
             for col in range(width):
-                easting = west + col
-                northing = north - row
+                easting = west + col * cell
+                northing = north - row * cell
                 source_row, source_col = dataset.index(easting, northing)
                 source = float(raw[source_row, source_col])
                 value = float(grid[row, col])
@@ -100,16 +108,17 @@ def main() -> None:
     west_value, west_x, west_z = scene_cell(scene, grid, anchor_e - 80, anchor_n)
     _north_value, north_x, north_z = scene_cell(scene, grid, anchor_e, anchor_n + 80)
     south_value, south_x, south_z = scene_cell(scene, grid, anchor_e, anchor_n - 80)
-    if not (east_x > west_x and abs(east_z - west_z) < 1):
+    if not (east_x > west_x and abs(east_z - west_z) < 1.5):
         raise SystemExit("local x does not increase to the east")
-    if not (north_z > south_z and abs(north_x - south_x) < 1):
+    if not (north_z > south_z and abs(north_x - south_x) < 1.5):
         raise SystemExit("local z does not increase to the north")
     if not (np.isnan(_north_value) and np.isclose(south_value, south_land, atol=0.05)):
         raise SystemExit("viewer grid swapped north and south")
     if not (np.isclose(east_value, east, atol=0.05) and np.isclose(west_value, west, atol=0.05)):
         raise SystemExit("viewer grid swapped east and west")
-    if width > 280 or height > 280:
-        raise SystemExit(f"display window is still too large: {width}x{height}")
+    cell = float(scene["terrain"]["cellSizeM"])
+    if (width - 1) * cell > 280 or (height - 1) * cell > 280:
+        raise SystemExit(f"display window is still too large: {width}x{height} at {cell} m")
     property_ = scene["property"]
     if property_["adressetekst"] != "Kalsneset 27" or property_["matrikkelnummer"] != "437/109":
         raise SystemExit("scene is not Kalsneset 27, 437/109")
@@ -128,12 +137,13 @@ def main() -> None:
             easting = west_origin + x
             northing = south_origin + z
             row, col = dataset.index(easting, northing)
+            pixel = abs(dataset.transform.a)
             nearest_sea = None
-            for d_row in range(-12, 13):
-                for d_col in range(-12, 13):
+            for d_row in range(-40, 41):
+                for d_col in range(-40, 41):
                     rr, cc = row + d_row, col + d_col
                     if 0 <= rr < dem.shape[0] and 0 <= cc < dem.shape[1] and dem[rr, cc] == 0.0:
-                        distance = (d_row**2 + d_col**2) ** 0.5
+                        distance = ((d_row * pixel) ** 2 + (d_col * pixel) ** 2) ** 0.5
                         if nearest_sea is None or distance < nearest_sea:
                             nearest_sea = distance
             if nearest_sea is not None and nearest_sea <= 5:

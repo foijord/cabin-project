@@ -57,14 +57,15 @@ function shadeAt(
   col: number,
   row: number,
   elevation: number,
+  cellSize: number,
 ): number {
   const at = (c: number, r: number) => {
     if (c < 0 || r < 0 || c >= width || r >= height) return elevation;
     const value = grid[r * width + c];
     return Number.isFinite(value) ? value : 0;
   };
-  const dx = (at(col + 1, row) - at(col - 1, row)) / 2;
-  const dz = (at(col, row - 1) - at(col, row + 1)) / 2;
+  const dx = (at(col + 1, row) - at(col - 1, row)) / (2 * cellSize);
+  const dz = (at(col, row - 1) - at(col, row + 1)) / (2 * cellSize);
   const nx = -dx;
   const ny = 1;
   const nz = -dz;
@@ -79,6 +80,7 @@ function shadeAt(
 
 export function buildTerrain(grid: Float32Array, scene: Scene): TerrainBundle {
   const { width, height } = scene.terrain;
+  const cell = scene.terrain.cellSizeM || 1;
   const count = width * height;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -92,11 +94,11 @@ export function buildTerrain(grid: Float32Array, scene: Scene): TerrainBundle {
       const y = water ? 0 : elevation;
       baseY[index] = y;
       // Column increases east. Row 0 is north. World Z is -north so the basis stays right-handed.
-      positions[index * 3] = col;
+      positions[index * 3] = col * cell;
       positions[index * 3 + 1] = y;
-      positions[index * 3 + 2] = worldZFromNorth(height - 1 - row);
+      positions[index * 3 + 2] = worldZFromNorth((height - 1 - row) * cell);
       const rgb = water ? WATER : landRgb(y);
-      const shade = water ? 1 : shadeAt(grid, width, height, col, row, y);
+      const shade = water ? 1 : shadeAt(grid, width, height, col, row, y, cell);
       colors[index * 3] = (rgb[0] / 255) * shade;
       colors[index * 3 + 1] = (rgb[1] / 255) * shade;
       colors[index * 3 + 2] = (rgb[2] / 255) * shade;
@@ -211,6 +213,7 @@ export function buildContours(
   width: number,
   height: number,
   interval: number,
+  cellSize = 1,
 ): HeightOverlay {
   const positions: number[] = [];
   const base: number[] = [];
@@ -229,10 +232,10 @@ export function buildContours(
         if (v01 >= level) mask |= 8;
         const lines = CONTOUR_LINES[mask];
         if (!lines) continue;
-        const x0 = col;
-        const x1 = col + 1;
-        const z0 = height - 1 - row;
-        const z1 = z0 - 1;
+        const x0 = col * cellSize;
+        const x1 = (col + 1) * cellSize;
+        const z0 = (height - 1 - row) * cellSize;
+        const z1 = z0 - cellSize;
         const point = (edge: EdgeName): [number, number] => {
           if (edge === "top") return [lerp(x0, x1, level, v00, v10), z0];
           if (edge === "bottom") return [lerp(x0, x1, level, v01, v11), z1];
@@ -272,10 +275,11 @@ function heightRuns(
   width: number,
   height: number,
   lines: Array<Array<[number, number]>>,
+  cellSize: number,
 ): Array<Array<[number, number, number]>> {
   return lines.map((line) =>
     line.map(([x, z]) => {
-      return [x, sampleSurface(grid, width, height, x, z), worldZFromNorth(z)];
+      return [x, sampleSurface(grid, width, height, x, z, cellSize), worldZFromNorth(z)];
     }),
   );
 }
@@ -285,38 +289,48 @@ export function buildWireframe(
   width: number,
   height: number,
   step: number,
+  cellSize = 1,
 ): HeightOverlay {
+  const east = (width - 1) * cellSize;
+  const north = (height - 1) * cellSize;
   const lines: Array<Array<[number, number]>> = [];
-  for (let x = 0; x < width; x += step) {
+  for (let x = 0; x < east; x += step) {
     const coords: Array<[number, number]> = [];
-    for (let z = 0; z < height; z += 4) coords.push([x, z]);
-    coords.push([x, height - 1]);
+    for (let z = 0; z < north; z += step) coords.push([x, z]);
+    coords.push([x, north]);
     lines.push(coords);
   }
-  for (let z = 0; z < height; z += step) {
+  for (let z = 0; z < north; z += step) {
     const coords: Array<[number, number]> = [];
-    for (let x = 0; x < width; x += 4) coords.push([x, z]);
-    coords.push([width - 1, z]);
+    for (let x = 0; x < east; x += step) coords.push([x, z]);
+    coords.push([east, z]);
     lines.push(coords);
   }
-  return overlayFromRuns(heightRuns(grid, width, height, lines), 0xf7f1e4, 0.55, 0.35, "wireframe");
+  return overlayFromRuns(heightRuns(grid, width, height, lines, cellSize), 0xf7f1e4, 0.55, 0.35, "wireframe");
 }
 
-export function buildGrid(grid: Float32Array, width: number, height: number): HeightOverlay {
+export function buildGrid(
+  grid: Float32Array,
+  width: number,
+  height: number,
+  cellSize = 1,
+): HeightOverlay {
+  const east = (width - 1) * cellSize;
+  const north = (height - 1) * cellSize;
   const lines: Array<Array<[number, number]>> = [];
-  for (let x = 0; x <= width; x += 100) {
-    const clampedX = Math.min(x, width - 1);
+  for (let x = 0; x <= east; x += 100) {
+    const clampedX = Math.min(x, east);
     const coords: Array<[number, number]> = [];
-    for (let z = 0; z < height; z += 8) coords.push([clampedX, z]);
-    coords.push([clampedX, height - 1]);
+    for (let z = 0; z < north; z += 8) coords.push([clampedX, z]);
+    coords.push([clampedX, north]);
     lines.push(coords);
   }
-  for (let z = 0; z <= height; z += 100) {
-    const clampedZ = Math.min(z, height - 1);
+  for (let z = 0; z <= north; z += 100) {
+    const clampedZ = Math.min(z, north);
     const coords: Array<[number, number]> = [];
-    for (let x = 0; x < width; x += 8) coords.push([x, clampedZ]);
-    coords.push([width - 1, clampedZ]);
+    for (let x = 0; x < east; x += 8) coords.push([x, clampedZ]);
+    coords.push([east, clampedZ]);
     lines.push(coords);
   }
-  return overlayFromRuns(heightRuns(grid, width, height, lines), 0xfffaf3, 0.45, 0.55, "grid");
+  return overlayFromRuns(heightRuns(grid, width, height, lines, cellSize), 0xfffaf3, 0.45, 0.55, "grid");
 }

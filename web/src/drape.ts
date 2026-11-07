@@ -19,9 +19,10 @@ export function sampleNearest(
   height: number,
   x: number,
   z: number,
+  cellSize = 1,
 ): number {
-  const col = Math.round(x);
-  const row = Math.round(height - 1 - z);
+  const col = Math.round(x / cellSize);
+  const row = Math.round(height - 1 - z / cellSize);
   if (col < 0 || row < 0 || col >= width || row >= height) return Number.NaN;
   return grid[row * width + col];
 }
@@ -32,9 +33,10 @@ export function sampleElevation(
   height: number,
   x: number,
   z: number,
+  cellSize = 1,
 ): number {
-  const col = x;
-  const row = height - 1 - z;
+  const col = x / cellSize;
+  const row = height - 1 - z / cellSize;
   if (col < 0 || row < 0 || col > width - 1 || row > height - 1) return Number.NaN;
   const c0 = Math.floor(col);
   const r0 = Math.floor(row);
@@ -62,10 +64,11 @@ export function sampleSurface(
   height: number,
   x: number,
   z: number,
+  cellSize = 1,
 ): number {
-  const bilinear = sampleElevation(grid, width, height, x, z);
+  const bilinear = sampleElevation(grid, width, height, x, z, cellSize);
   if (Number.isFinite(bilinear)) return bilinear;
-  const nearest = sampleNearest(grid, width, height, x, z);
+  const nearest = sampleNearest(grid, width, height, x, z, cellSize);
   return Number.isFinite(nearest) ? nearest : 0;
 }
 

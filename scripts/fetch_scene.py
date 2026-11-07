@@ -29,9 +29,15 @@ PROVENANCE_JSON = ROOT / "data" / "provenance.json"
 USER_AGENT = "cabin-project/1.0 (public Geonorge extract; +https://github.com/foijord/cabin-project)"
 ADDRESS_QUERY = "Kalsneset 27 Søgne"
 HALF_EXTENT_M = 300
-# Metres of DTM kept around the registered parcel. The download stays 600 m;
-# the viewer shows this tighter window, including the shore to the north and east.
+# Metres of DTM kept around the registered parcel. The viewer window below is the
+# outer cell edges of the previous 1 m scene. The native 0.5 m lattice covers it.
 DISPLAY_MARGIN_M = 95
+CELL_M = 0.5
+# Outer edges, EPSG:25832. These match the published 237 m × 238 m window.
+WINDOW_WEST = 424894.0
+WINDOW_SOUTH = 6435574.0
+WINDOW_EAST = 425131.0
+WINDOW_NORTH = 6435812.0
 
 # Names from SSB Klass classification 31, "Standard for bygningstype / Matrikkelen",
 # codesAt 2026-11-07. The classification record says copyrighted: false.
@@ -68,7 +74,8 @@ BUILDING_STATUS = {
 NOT_STANDING = {"BA", "BR", "BF", "BU", "GR"}
 
 ADDRESS_URL = "https://ws.geonorge.no/adresser/v1/sok"
-WCS_URL = "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832"
+DTM_EXPORT = "https://hoydedata.no/arcgis/rest/services/DTM/ImageServer/exportImage"
+PROJECT_FILTER = "LAS_PROJECT_ID=30 AND CATEGORY=1"
 TEIG_URL = "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-eiendomskart-teig"
 BYGNING_URL = "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-bygningspunkt"
 PROJECT_URL = "https://wfs.geonorge.no/skwms1/wfs.hoyde-hoydedata-metadata-prosjekt"
@@ -188,28 +195,36 @@ def utm_bbox(easting: float, northing: float) -> tuple[int, int, int, int]:
     return minx, miny, minx + HALF_EXTENT_M * 2, miny + HALF_EXTENT_M * 2
 
 
-def download_dtm(bbox: tuple[int, int, int, int]) -> tuple[Path, str]:
+def download_dtm(bbox: tuple[float, float, float, float]) -> tuple[Path, str]:
+    """Native 0.5 m Søgne 2013 DTM. Nearest neighbour, project 30, primary raster only."""
     minx, miny, maxx, maxy = bbox
-    width = maxx - minx
-    height = maxy - miny
-    query = urllib.parse.urlencode(
-        {
-            "service": "WCS",
-            "version": "1.0.0",
-            "request": "GetCoverage",
-            "coverage": "nhm_dtm_topo_25832",
-            "crs": "EPSG:25832",
-            "bbox": f"{minx},{miny},{maxx},{maxy}",
-            "width": width,
-            "height": height,
-            "format": "GeoTIFF",
-        }
-    )
-    url = f"{WCS_URL}?{query}"
-    body = fetch(url)
+    width = int(round((maxx - minx) / CELL_M))
+    height = int(round((maxy - miny) / CELL_M))
+    if abs(width * CELL_M - (maxx - minx)) > 1e-6 or abs(height * CELL_M - (maxy - miny)) > 1e-6:
+        raise RuntimeError("DTM window is not a whole number of 0.5 m cells")
+    params = {
+        "f": "json",
+        "bbox": f"{minx},{miny},{maxx},{maxy}",
+        "bboxSR": "25832",
+        "imageSR": "25832",
+        "size": f"{width},{height}",
+        "format": "tiff",
+        "pixelType": "F32",
+        "interpolation": "RSP_NearestNeighbor",
+        "renderingRule": json.dumps({"rasterFunction": "None"}),
+        "mosaicRule": json.dumps(
+            {"mosaicMethod": "esriMosaicAttribute", "where": PROJECT_FILTER}
+        ),
+    }
+    url = DTM_EXPORT + "?" + urllib.parse.urlencode(params)
+    meta = json.loads(fetch(url))
+    href = meta.get("href")
+    if not href:
+        raise RuntimeError(f"DTM export did not return a GeoTIFF: {meta}")
+    body = fetch(href, timeout=180)
     if body[:4] not in {b"II*\x00", b"MM\x00*"}:
         snippet = body[:300].decode("utf-8", "replace")
-        raise RuntimeError(f"WCS did not return a TIFF: {snippet}")
+        raise RuntimeError(f"DTM export did not return a TIFF: {snippet}")
     path = RAW / "dtm.tif"
     path.write_bytes(body)
     return path, url
@@ -469,8 +484,9 @@ def main() -> None:
     easting, northing = to_utm.transform(lon, lat)
     bbox = utm_bbox(easting, northing)
     minx, miny, maxx, maxy = bbox
+    window_bbox = (WINDOW_WEST, WINDOW_SOUTH, WINDOW_EAST, WINDOW_NORTH)
 
-    dtm_path, dtm_url = download_dtm(bbox)
+    dtm_path, dtm_url = download_dtm(window_bbox)
     wfs_bbox = f"{minx},{miny},{maxx},{maxy},urn:ogc:def:crs:EPSG::25832"
     teig_url = download_wfs(TEIG_URL, "app:Teig", wfs_bbox, 500, RAW / "teig.gml")
     building_url = download_wfs(
@@ -481,13 +497,21 @@ def main() -> None:
     with rasterio.open(dtm_path) as dataset:
         if dataset.crs is None or dataset.crs.to_epsg() != 25832:
             raise RuntimeError(f"DTM CRS is {dataset.crs}, expected EPSG:25832")
-        if dataset.width != maxx - minx or dataset.height != maxy - miny:
-            raise RuntimeError("DTM size does not match the requested 1 m grid")
         transform = dataset.transform
-        if abs(transform.a - 1) > 1e-6 or abs(transform.e + 1) > 1e-6:
-            raise RuntimeError(f"DTM pixel size is not 1 m: {transform}")
-        grid = dataset.read(1).astype(np.float32)
+        if abs(transform.a - CELL_M) > 1e-6 or abs(transform.e + CELL_M) > 1e-6:
+            raise RuntimeError(f"DTM pixel size is not native 0.5 m: {transform}")
+        if abs(transform.b) > 1e-9 or abs(transform.d) > 1e-9:
+            raise RuntimeError(f"DTM axes are rotated or skewed: {transform}")
+        if abs(transform.c - WINDOW_WEST) > 1e-4 or abs(transform.f - WINDOW_NORTH) > 1e-4:
+            raise RuntimeError(f"DTM origin shifted off the preserved window: {transform}")
         tags = dataset.tags()
+        if tags.get("AREA_OR_POINT") != "Area":
+            raise RuntimeError(f"DTM registration is {tags.get('AREA_OR_POINT')}, expected Area")
+        if dataset.width != int(round((WINDOW_EAST - WINDOW_WEST) / CELL_M)):
+            raise RuntimeError("DTM width does not match the preserved window")
+        if dataset.height != int(round((WINDOW_NORTH - WINDOW_SOUTH) / CELL_M)):
+            raise RuntimeError("DTM height does not match the preserved window")
+        grid = dataset.read(1).astype(np.float32)
 
     exact_zero = grid == 0
     sea = connected_to_border(exact_zero)
@@ -546,25 +570,33 @@ def main() -> None:
     if not any(item["bygningstype"] == "161" for item in subject_buildings):
         raise RuntimeError("No fritidsbygning point on 437/109")
 
-    elevations, west_center, north_center, display_window = crop_to_parcel(
-        elevations,
-        west_center,
-        north_center,
-        transform,
-        subject_teig["polygons"],
-    )
+    # The export is already the preserved window. Do not resample onto the old 1 m centres.
+    if abs(west_center - (WINDOW_WEST + CELL_M / 2)) > 1e-4:
+        raise RuntimeError(f"west cell centre shifted to {west_center}")
+    if abs(north_center - (WINDOW_NORTH - CELL_M / 2)) > 1e-4:
+        raise RuntimeError(f"north cell centre shifted to {north_center}")
+    display_window = {
+        "marginM": DISPLAY_MARGIN_M,
+        "outerWest": WINDOW_WEST,
+        "outerSouth": WINDOW_SOUTH,
+        "outerEast": WINDOW_EAST,
+        "outerNorth": WINDOW_NORTH,
+        "cellSizeM": CELL_M,
+        "resampled": False,
+        "note": (
+            "Outer edges are the previous 1 m window. Native centres sit on *.25/*.75, "
+            "0.25 m from the old 1 m centres, and were not snapped onto them."
+        ),
+    }
     grid = elevations
-    holes = holes[
-        display_window["sourceRow0"] : display_window["sourceRow1"] + 1,
-        display_window["sourceCol0"] : display_window["sourceCol1"] + 1,
-    ]
     south_center = north_center + (elevations.shape[0] - 1) * transform.e
     finite_land = elevations[np.isfinite(elevations)]
     sea = ~np.isfinite(elevations)
 
     def inside_view(x_e: float, y_n: float, pad: float = 2) -> bool:
+        east_edge = west_center + (elevations.shape[1] - 1) * CELL_M
         return (
-            west_center - pad <= x_e <= west_center + elevations.shape[1] - 1 + pad
+            west_center - pad <= x_e <= east_edge + pad
             and south_center - pad <= y_n <= north_center + pad
         )
 
@@ -575,7 +607,7 @@ def main() -> None:
         for polygon in teig["polygons"]:
             xs = [point[0] for point in polygon["exterior"]]
             ys = [point[1] for point in polygon["exterior"]]
-            if max(xs) < west_center or min(xs) > west_center + elevations.shape[1]:
+            if max(xs) < west_center or min(xs) > west_center + (elevations.shape[1] - 1) * CELL_M:
                 continue
             if max(ys) < south_center or min(ys) > north_center:
                 continue
@@ -682,7 +714,7 @@ def main() -> None:
         "terrain": {
             "width": int(grid.shape[1]),
             "height": int(grid.shape[0]),
-            "cellSizeM": 1,
+            "cellSizeM": CELL_M,
             "registration": "cell-center",
             "row0": "north",
             "axes": {"x": "east", "y": "up", "z": "north"},
@@ -702,9 +734,9 @@ def main() -> None:
             "inlandZeroCellsFilled": int(holes.sum()),
             "landCellCount": int((~sea).sum()),
             "seaEncoding": (
-                "The WCS has no nodata tag and returns exact 0.0 for sea and for gaps. "
-                "Exact-zero cells connected to the edge of this extract are stored as NaN and drawn as sea. "
-                "Inland exact-zero cells are filled from neighbouring measured cells."
+                "The Søgne 2013 GeoTIFF has no nodata tag. Exact 0.0 cells connected to the edge "
+                "of this window are stored as NaN and drawn as sea. Other values, including negatives "
+                "along the shore, are kept. Grid spacing is not a surveyed accuracy."
             ),
             "binary": "terrain.bin",
             "binaryDtype": "float32-le",
@@ -734,12 +766,23 @@ def main() -> None:
         },
         "terrain": {
             "request": dtm_url,
-            "service": WCS_URL,
-            "coverage": "nhm_dtm_topo_25832",
-            "documentation": "https://kartkatalog.geonorge.no/metadata/uuid/05821c51-2f5b-411f-9098-924d13dbea9a",
-            "dataset": "https://kartkatalog.geonorge.no/metadata/uuid/f297e948-8a34-4e6c-9740-54b3a657f8d5",
-            "licenceStatement": "Geonorge records Høydedata - laser as open data: no conditions apply to access and use.",
-            "attribution": "© Kartverket",
+            "service": DTM_EXPORT,
+            "project": "Søgne 2013",
+            "lasProjectId": 30,
+            "mosaicFilter": PROJECT_FILTER,
+            "interpolation": "RSP_NearestNeighbor",
+            "nativeCellSizeM": CELL_M,
+            "documentation": "https://hoydedata.no/LaserServices/REST/ProjectMetadata.ashx",
+            "dataset": "https://hoydedata.no/arcgis/rest/services/DTM/ImageServer",
+            "licenceStatement": (
+                "Published in this viewer on the owner's instruction. ProjectMetadata for Søgne 2013 "
+                "returns TILGANG 1 and BEST_OPEN 1. The DTM ImageServer primary raster (OBJECTID 1924) "
+                "returns TILGANG 2. The høydedata FAQ defines TILGANG 2 as closed. Other projects "
+                "checked the same day have matching flags. Unauthenticated download is not permission. "
+                "This note discloses the conflict. It is not a definitive licence clearance. "
+                "Commissioner is Kartverket. © Kartverket."
+            ),
+            "attribution": "© Kartverket. Søgne 2013 DTM, native 0.5 m grid, flight 2013-04-30.",
             "file": "data/raw/dtm.tif",
             "sha256": sha256(dtm_path),
             "bytes": dtm_path.stat().st_size,
@@ -749,7 +792,7 @@ def main() -> None:
             "bboxEastingNorthing": list(bbox),
             "width": int(grid.shape[1]),
             "height": int(grid.shape[0]),
-            "cellSizeM": 1,
+            "cellSizeM": CELL_M,
             "nodataTag": None,
             "geotiffTags": tags,
             "min": float(np.min(grid)),
@@ -761,8 +804,11 @@ def main() -> None:
             "projectsRequest": project_url,
             "projects": projects,
             "openProjectNote": (
-                "Of the project polygons containing this address, Søgne 2013 is the only one "
-                "with BEST_OPEN=1. The WCS grid does not carry a per-cell project id."
+                "This grid is the Søgne 2013 project DTM, LAS_PROJECT_ID 30, category 1, "
+                "exported at native 0.5 m with nearest neighbour. It is not a resample of the "
+                "national 1 m model. Ordered point density is 3/m²; that is not a measured "
+                "ground density and not a vertical accuracy. Flight date 2013-04-30. "
+                "Vertical datum NN2000 comes from project metadata code 5941."
             ),
             "displayWindow": display_window,
             "orientation": (

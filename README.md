@@ -8,7 +8,7 @@ This is a planning picture for a family project. It is not a survey, not a const
 
 | Layer | Source | What it is |
 | --- | --- | --- |
-| Terrain | Kartverket national DTM, 1 m grid | Bare earth, NN2000 heights |
+| Terrain | Kartverket Søgne 2013 DTM, native 0.5 m grid | Bare earth, NN2000. Grid spacing is not a surveyed accuracy |
 | Address | Kartverket address API | One official hit |
 | Parcel | Matrikkelen eiendomskart teig | Registered polygon 4204-437/109 |
 | Buildings | Matrikkelen building points | Points only, no roof heights |
@@ -46,7 +46,7 @@ python3 scripts/fetch_scene.py
 python3 scripts/validate_scene.py
 ```
 
-The script downloads a 600 m extract from the public Geonorge services and rewrites `web/public/data`. It stops if the address search is not exactly Kalsneset 27, kommune 4204, gnr/bnr 437/109.
+The script downloads the native 0.5 m Søgne 2013 DTM for the existing viewer window and rewrites `web/public/data`. It stops if the address search is not exactly Kalsneset 27, kommune 4204, gnr/bnr 437/109. The 0.5 m spacing is the raster resolution, not a claim of vertical accuracy.
 
 ## Publish on GitHub Pages
 
@@ -64,4 +64,4 @@ After the workflow succeeds, check `https://foijord.github.io/cabin-project/` in
 
 ## Credit
 
-© Kartverket. Address, parcel and building points are CC BY 4.0. The height dataset is published as open data with no conditions on access and use.
+© Kartverket. Address, parcel and building points are CC BY 4.0. The terrain shown here is the Søgne 2013 project DTM. Project metadata marks it TILGANG 1 and the raster catalogue marks the same grid TILGANG 2, so it is not described here as cleared open data. See [docs/PROVENANCE.md](docs/PROVENANCE.md).

@@ -44,13 +44,14 @@ const CLAY = new THREE.Color("#cbbfaa");
 export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: Float32Array): Viewer {
   const width = sceneData.terrain.width;
   const height = sceneData.terrain.height;
+  const cell = sceneData.terrain.cellSizeM || 1;
+  const span = Math.max((width - 1) * cell, (height - 1) * cell);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0xc5d5da, 1);
 
   const scene = new THREE.Scene();
-  const span = Math.max(width, height);
   // Fog starts beyond the far side of the model, so an overview stays clear.
   scene.fog = new THREE.Fog(0xc5d5da, span * 2.4, span * 3.6);
   const camera = new THREE.PerspectiveCamera(42, 1, 0.35, 2500);
@@ -65,7 +66,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
 
   const terrain: TerrainBundle = buildTerrain(grid, sceneData);
   scene.add(terrain.mesh);
-  const gridOverlay = buildGrid(grid, width, height);
+  const gridOverlay = buildGrid(grid, width, height, cell);
   scene.add(gridOverlay.line);
 
   let contours: HeightOverlay | null = null;
@@ -76,7 +77,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   const parcelGroup = new THREE.Group();
   parcelGroup.name = "parcels";
   scene.add(parcelGroup);
-  const subjectFill = buildParcelFill(sceneData.teig.polygons, grid, width, height);
+  const subjectFill = buildParcelFill(sceneData.teig.polygons, grid, width, height, cell);
   parcelGroup.add(subjectFill);
   const subjectLines = buildBoundaryLines(
     sceneData.teig.polygons,
@@ -84,10 +85,11 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     width,
     height,
     0x6a3a28,
+    cell,
   );
   for (const line of subjectLines) parcelGroup.add(line);
   const contextLines = sceneData.contextParcels.flatMap((parcel) =>
-    buildBoundaryLines(parcel.polygons, grid, width, height, 0xe4ddd2),
+    buildBoundaryLines(parcel.polygons, grid, width, height, 0xe4ddd2, cell),
   );
   for (const line of contextLines) parcelGroup.add(line);
 
@@ -95,7 +97,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   buildingGroup.name = "buildings";
   scene.add(buildingGroup);
   const markers = addBuildings(sceneData, buildingGroup);
-  const northMarker = addNorthMarker(grid, width, height);
+  const northMarker = addNorthMarker(grid, width, height, cell);
   scene.add(northMarker.object);
 
   const northArrow = document.querySelector<HTMLElement>("#north-arrow");
@@ -135,7 +137,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
       contours.line.geometry.dispose();
       (contours.line.material as THREE.Material).dispose();
     }
-    contours = buildContours(grid, width, height, interval);
+    contours = buildContours(grid, width, height, interval, cell);
     contourInterval = interval;
     applyOverlayScale(contours, exaggeration);
     scene.add(contours.line);
@@ -201,7 +203,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
       return;
     }
     const localNorth = -hit.z;
-    const nearest = sampleNearest(grid, width, height, hit.x, localNorth);
+    const nearest = sampleNearest(grid, width, height, hit.x, localNorth, cell);
     const easting = sceneData.terrain.westCellCenterEasting + hit.x;
     const northing = sceneData.terrain.southCellCenterNorthing + localNorth;
     const inside = pointInPolygons(hit.x, localNorth, sceneData.teig.polygons);
@@ -220,13 +222,13 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
       const y = ray.origin.y + direction.y * distance;
       const z = ray.origin.z + direction.z * distance;
       const localNorth = -z;
-      const inside = x >= 0 && localNorth >= 0 && x <= width - 1 && localNorth <= height - 1;
+      const inside = x >= 0 && localNorth >= 0 && x <= (width - 1) * cell && localNorth <= (height - 1) * cell;
       if (!inside) {
         if (distance > 30) return null;
         distance += 15;
         continue;
       }
-      const surface = sampleSurface(grid, width, height, x, localNorth) * exaggeration;
+      const surface = sampleSurface(grid, width, height, x, localNorth, cell) * exaggeration;
       if (y <= surface) return new THREE.Vector3(x, surface, z);
       distance += Math.min(30, Math.max(1.2, (y - surface) * 0.5));
     }
@@ -300,7 +302,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     },
     setWireframe(enabled: boolean) {
       if (enabled && !wire) {
-        wire = buildWireframe(grid, width, height, 10);
+        wire = buildWireframe(grid, width, height, 10, cell);
         applyOverlayScale(wire, exaggeration);
         scene.add(wire.line);
       }
@@ -343,6 +345,7 @@ function buildParcelFill(
   grid: Float32Array,
   width: number,
   height: number,
+  cellSize: number,
 ): THREE.Mesh {
   const ring = openRing(densifyClosedRing(polygons[0]?.exterior ?? [], BOUNDARY_SAMPLE_M));
   const shape = new THREE.Shape();
@@ -356,7 +359,7 @@ function buildParcelFill(
   const position = geometry.getAttribute("position") as THREE.BufferAttribute;
   const base = new Float32Array(position.count);
   for (let index = 0; index < position.count; index += 1) {
-    base[index] = sampleSurface(grid, width, height, position.getX(index), -position.getZ(index));
+    base[index] = sampleSurface(grid, width, height, position.getX(index), -position.getZ(index), cellSize);
     position.setY(index, base[index] + 0.2);
   }
   const material = new THREE.MeshBasicMaterial({
@@ -383,6 +386,7 @@ function buildBoundaryLines(
   width: number,
   height: number,
   color: number,
+  cellSize: number,
 ): THREE.Line[] {
   const lines: THREE.Line[] = [];
   const material = new THREE.LineBasicMaterial({
@@ -400,7 +404,7 @@ function buildBoundaryLines(
       const positions: number[] = [];
       const base: number[] = [];
       for (const [x, z] of samples) {
-        const elevation = sampleSurface(grid, width, height, x, z);
+        const elevation = sampleSurface(grid, width, height, x, z, cellSize);
         positions.push(x, elevation + BOUNDARY_CLEARANCE_M, worldZFromNorth(z));
         base.push(elevation);
       }
@@ -420,10 +424,11 @@ function addNorthMarker(
   grid: Float32Array,
   width: number,
   height: number,
+  cellSize: number,
 ): { object: THREE.Group; base: number } {
-  const x = width * 0.5;
-  const z = height - 16;
-  const base = sampleSurface(grid, width, height, x, z);
+  const x = ((width - 1) * cellSize) * 0.5;
+  const z = (height - 1) * cellSize - 16;
+  const base = sampleSurface(grid, width, height, x, z, cellSize);
   const group = new THREE.Group();
   const green = new THREE.MeshBasicMaterial({ color: 0x1e6a52 });
   const shaft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 12), green);
