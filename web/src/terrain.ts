@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import type { Scene } from "./types";
+import { sampleElevation, sampleNearest, sampleSurface } from "./drape";
+
+export { sampleElevation, sampleNearest, sampleSurface };
 
 export interface TerrainBundle {
   mesh: THREE.Mesh;
@@ -26,62 +29,6 @@ const WATER: [number, number, number] = [62, 122, 140];
  */
 export function worldZFromNorth(localNorth: number): number {
   return -localNorth;
-}
-
-export function sampleNearest(
-  grid: Float32Array,
-  width: number,
-  height: number,
-  x: number,
-  z: number,
-): number {
-  const col = Math.round(x);
-  const row = Math.round(height - 1 - z);
-  if (col < 0 || row < 0 || col >= width || row >= height) return Number.NaN;
-  return grid[row * width + col];
-}
-
-/** Bilinear land height, then the nearest cell, then 0 on sea-coded cells. */
-export function sampleSurface(
-  grid: Float32Array,
-  width: number,
-  height: number,
-  x: number,
-  z: number,
-): number {
-  const bilinear = sampleElevation(grid, width, height, x, z);
-  if (Number.isFinite(bilinear)) return bilinear;
-  const nearest = sampleNearest(grid, width, height, x, z);
-  return Number.isFinite(nearest) ? nearest : 0;
-}
-
-export function sampleElevation(
-  grid: Float32Array,
-  width: number,
-  height: number,
-  x: number,
-  z: number,
-): number {
-  const col = x;
-  const row = height - 1 - z;
-  if (col < 0 || row < 0 || col > width - 1 || row > height - 1) return Number.NaN;
-  const c0 = Math.floor(col);
-  const r0 = Math.floor(row);
-  const c1 = Math.min(c0 + 1, width - 1);
-  const r1 = Math.min(r0 + 1, height - 1);
-  const tx = col - c0;
-  const ty = row - r0;
-  const v00 = grid[r0 * width + c0];
-  const v10 = grid[r0 * width + c1];
-  const v01 = grid[r1 * width + c0];
-  const v11 = grid[r1 * width + c1];
-  if (![v00, v10, v01, v11].every(Number.isFinite)) return Number.NaN;
-  return (
-    v00 * (1 - tx) * (1 - ty) +
-    v10 * tx * (1 - ty) +
-    v01 * (1 - tx) * ty +
-    v11 * tx * ty
-  );
 }
 
 function landRgb(elevation: number): [number, number, number] {

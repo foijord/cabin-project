@@ -2,6 +2,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { BuildingRecord, RingPolygon, Scene } from "./types";
 import {
+  BOUNDARY_CLEARANCE_M,
+  BOUNDARY_SAMPLE_M,
+  densifyClosedRing,
+} from "./drape";
+import {
   applyExaggeration,
   applyOverlayScale,
   buildContours,
@@ -73,13 +78,19 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   scene.add(parcelGroup);
   const subjectFill = buildParcelFill(sceneData.teig.polygons, grid, width, height);
   parcelGroup.add(subjectFill);
-  const subjectRibbon = buildBoundaryRibbon(sceneData.teig.polygons, grid, width, height, 0x9a3e16, 0.55, 0.85);
-  parcelGroup.add(subjectRibbon);
-  const subjectLines = buildParcelLines(sceneData.teig.polygons, grid, width, height, 0xf6f1e8, 1.15);
-  const contextLines = sceneData.contextParcels.flatMap((parcel) =>
-    buildParcelLines(parcel.polygons, grid, width, height, 0xf3ecdf, 0.35),
+  const subjectRibbon = buildBoundaryRibbon(
+    sceneData.teig.polygons,
+    grid,
+    width,
+    height,
+    0x8f3412,
+    0.7,
   );
-  for (const line of [...subjectLines, ...contextLines]) parcelGroup.add(line);
+  parcelGroup.add(subjectRibbon);
+  const contextLines = sceneData.contextParcels.flatMap((parcel) =>
+    buildBoundaryRibbon(parcel.polygons, grid, width, height, 0xf4efe4, 0.28),
+  );
+  for (const line of contextLines) parcelGroup.add(line);
 
   const buildingGroup = new THREE.Group();
   buildingGroup.name = "buildings";
@@ -110,7 +121,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     if (wire) applyOverlayScale(wire, exaggeration);
     drapeObject(subjectFill, exaggeration);
     drapeObject(subjectRibbon, exaggeration);
-    for (const line of [...subjectLines, ...contextLines]) drapeObject(line, exaggeration);
+    for (const line of contextLines) drapeObject(line, exaggeration);
     for (const marker of markers) {
       marker.object.position.y = marker.base * exaggeration;
     }
@@ -334,7 +345,7 @@ function buildParcelFill(
   width: number,
   height: number,
 ): THREE.Mesh {
-  const ring = openRing(polygons[0]?.exterior ?? []);
+  const ring = openRing(densifyClosedRing(polygons[0]?.exterior ?? [], BOUNDARY_SAMPLE_M));
   const shape = new THREE.Shape();
   if (ring.length) {
     shape.moveTo(ring[0][0], ring[0][1]);
@@ -347,18 +358,22 @@ function buildParcelFill(
   const base = new Float32Array(position.count);
   for (let index = 0; index < position.count; index += 1) {
     base[index] = sampleSurface(grid, width, height, position.getX(index), -position.getZ(index));
-    position.setY(index, base[index] + 0.55);
+    position.setY(index, base[index] + 0.2);
   }
   const material = new THREE.MeshBasicMaterial({
     color: 0xe39a4a,
     transparent: true,
     opacity: 0.34,
     depthWrite: false,
+    depthTest: true,
     side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.userData.baseY = base;
-  mesh.userData.lift = 0.55;
+  mesh.userData.lift = 0.2;
   mesh.renderOrder = 2;
   return mesh;
 }
@@ -370,32 +385,32 @@ function buildBoundaryRibbon(
   height: number,
   color: number,
   halfWidth: number,
-  lift: number,
 ): THREE.Mesh {
   const positions: number[] = [];
   const base: number[] = [];
   const indices: number[] = [];
+  const terrainAt = (x: number, z: number) => sampleSurface(grid, width, height, x, z);
   for (const polygon of polygons) {
     for (const ring of [polygon.exterior, ...polygon.holes]) {
-      for (let index = 0; index < ring.length - 1; index += 1) {
-        const [x0, z0] = ring[index];
-        const [x1, z1] = ring[index + 1];
+      const centerline = densifyClosedRing(ring, BOUNDARY_SAMPLE_M);
+      for (let index = 0; index < centerline.length - 1; index += 1) {
+        const [x0, z0] = centerline[index];
+        const [x1, z1] = centerline[index + 1];
         const dx = x1 - x0;
         const dz = z1 - z0;
         const length = Math.hypot(dx, dz) || 1;
         const ox = (-dz / length) * halfWidth;
         const oz = (dx / length) * halfWidth;
-        const e0 = sampleSurface(grid, width, height, x0, z0);
-        const e1 = sampleSurface(grid, width, height, x1, z1);
-        const start = positions.length / 3;
-        const corners: Array<[number, number, number]> = [
-          [x0 + ox, z0 + oz, e0],
-          [x0 - ox, z0 - oz, e0],
-          [x1 + ox, z1 + oz, e1],
-          [x1 - ox, z1 - oz, e1],
+        const corners: Array<[number, number]> = [
+          [x0 + ox, z0 + oz],
+          [x0 - ox, z0 - oz],
+          [x1 + ox, z1 + oz],
+          [x1 - ox, z1 - oz],
         ];
-        for (const [x, z, elevation] of corners) {
-          positions.push(x, elevation + lift, worldZFromNorth(z));
+        const start = positions.length / 3;
+        for (const [x, z] of corners) {
+          const elevation = terrainAt(x, z);
+          positions.push(x, elevation + BOUNDARY_CLEARANCE_M, worldZFromNorth(z));
           base.push(elevation);
         }
         indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
@@ -409,44 +424,16 @@ function buildBoundaryRibbon(
     color,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.userData.baseY = Float32Array.from(base);
-  mesh.userData.lift = lift;
-  mesh.renderOrder = 3;
+  mesh.userData.lift = BOUNDARY_CLEARANCE_M;
+  mesh.renderOrder = 4;
   return mesh;
-}
-
-function buildParcelLines(
-  polygons: RingPolygon[],
-  grid: Float32Array,
-  width: number,
-  height: number,
-  color: number,
-  lift: number,
-): THREE.Line[] {
-  const lines: THREE.Line[] = [];
-  for (const polygon of polygons) {
-    for (const ring of [polygon.exterior, ...polygon.holes]) {
-      if (ring.length < 2) continue;
-      const positions: number[] = [];
-      const base: number[] = [];
-      for (const [x, z] of ring) {
-        const elevation = sampleSurface(grid, width, height, x, z);
-        positions.push(x, elevation + lift, worldZFromNorth(z));
-        base.push(elevation);
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-      const material = new THREE.LineBasicMaterial({ color });
-      const line = new THREE.Line(geometry, material);
-      line.userData.baseY = Float32Array.from(base);
-      line.userData.lift = lift;
-      line.renderOrder = 3;
-      lines.push(line);
-    }
-  }
-  return lines;
 }
 
 function addNorthMarker(
