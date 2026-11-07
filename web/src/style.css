@@ -29,15 +29,59 @@ body {
   position: absolute;
   top: 14px;
   left: 14px;
+  z-index: 2;
   width: min(380px, calc(100vw - 28px));
   max-height: calc(100% - 28px);
   overflow: auto;
-  padding: 18px 18px 14px;
+  overscroll-behavior: contain;
+  padding: 12px 18px 14px;
   border-radius: 18px;
   background: rgba(246, 241, 232, 0.94);
   color: #1d2c28;
   box-shadow: 0 16px 40px rgba(28, 44, 40, 0.16);
   backdrop-filter: blur(8px);
+}
+
+.panel-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+  padding: 2px 0 8px;
+  background: rgba(246, 241, 232, 0.96);
+}
+
+#panel-toggle {
+  flex: none;
+  width: auto;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 18px;
+  box-shadow: 0 8px 20px rgba(28, 44, 40, 0.18);
+  touch-action: manipulation;
+}
+
+html.panel-collapsed .panel {
+  width: auto;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+html.panel-collapsed .panel-bar {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+html.panel-collapsed #panel-body {
+  display: none;
 }
 
 .panel h1 {
@@ -240,6 +284,7 @@ code {
 }
 
 .loader.hidden { display: none; }
+.error[hidden] { display: none; }
 
 .error {
   inset: auto 16px 16px 16px;
@@ -254,8 +299,20 @@ code {
     bottom: 0;
     left: 0;
     width: 100%;
-    max-height: 48vh;
+    max-height: calc(100svh - 96px);
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
     border-radius: 18px 18px 0 0;
+  }
+
+  html.panel-collapsed .panel {
+    top: 10px;
+    right: auto;
+    bottom: auto;
+    left: 10px;
+    width: auto;
+    max-height: none;
+    padding: 0;
+    border-radius: 0;
   }
 
   .hud { top: 10px; right: 10px; }
