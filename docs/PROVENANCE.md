@@ -97,6 +97,16 @@ No roof height, storey count, or footprint is in this open extract. None is inve
 - **Zoning or regulation.** No plan map is used.
 - **Commercial satellite imagery.** None.
 
+## Orientation
+
+The GeoTIFF is north-up. In the scene file, local x is metres east and local z is metres north. Those file coordinates are not swapped.
+
+Three.js is right-handed and Y-up. East × up is south, not north, so storing world Z as north makes a left-handed basis. A north-up camera then draws east on the left of the screen. The rendered fix is `world Z = -local north`. A top-down view with geographic north at the top of the screen then has the east control on the right.
+
+The parcel and the terrain use the same local metres. In map space, 62 of 66 parcel vertices are within 8 m of a DTM zero cell (median distance 0 m), and about 90% of the polygon is on land. The address point is inside the polygon. That is registration, not a second axis swap. The water edge is the Matrikkelen helper line `Hjelpelinje vannkant`; it follows the DTM water closely on this teig, with a fringe of sea cells inside the polygon.
+
+Checked on this extract, 80 m from 425021.002 E, 6435682.001 N: north is sea (0.0 m), south is 9.86 m, west is 6.21 m, and east is 3.37 m.
+
 ## Processing
 
 `scripts/fetch_scene.py` does the downloads and the coordinate conversion. Heights in the viewer are metres. Local x is east and local z is north, both in metres from the south-west cell centre of the grid (424721.5 E, 6435382.5 N). Vertical exaggeration is a display scale and defaults to 1.

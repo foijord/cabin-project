@@ -89,7 +89,8 @@ function fillPanel(scene: Scene) {
   const otherCount = scene.buildings.length - onParcel.length;
   const other = document.querySelector("#other-buildings");
   if (other) {
-    other.textContent = `${otherCount} other Matrikkelen points in this 600 m view are shown smaller. Status GR is approved demolished or burned.`;
+    const span = Math.max(scene.terrain.width, scene.terrain.height);
+    other.textContent = `${otherCount} other Matrikkelen points in this ${span} m view are shown smaller. Status GR is approved demolished or burned.`;
   }
   const sources = document.querySelector("#sources");
   if (sources) {
@@ -135,10 +136,10 @@ function wireControls(viewer: Viewer) {
   document.querySelector("#reset-view")?.addEventListener("click", () => {
     if (exag) exag.value = "1";
     syncExaggeration();
-    viewer.frameProperty();
-  });
+viewer.frameContext();
+});
   window.addEventListener("keydown", (event) => {
-    if (event.key === "r" || event.key === "R") viewer.frameProperty();
+    if (event.key === "r" || event.key === "R") viewer.frameContext();
     if (!exag) return;
     if (event.key === "+" || event.key === "=") {
       exag.value = String(Math.min(4, Number(exag.value) + 0.5));

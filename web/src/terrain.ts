@@ -19,6 +19,15 @@ const LAND_STOPS: Array<[number, [number, number, number]]> = [
 
 const WATER: [number, number, number] = [62, 122, 140];
 
+/**
+ * Scene data stores metres north of the southern edge.
+ * Three.js is right-handed and Y-up, so east × up must be -north.
+ * World Z is therefore south-positive.
+ */
+export function worldZFromNorth(localNorth: number): number {
+  return -localNorth;
+}
+
 export function sampleNearest(
   grid: Float32Array,
   width: number,
@@ -135,9 +144,10 @@ export function buildTerrain(grid: Float32Array, scene: Scene): TerrainBundle {
       const water = !Number.isFinite(elevation);
       const y = water ? 0 : elevation;
       baseY[index] = y;
+      // Column increases east. Row 0 is north. World Z is -north so the basis stays right-handed.
       positions[index * 3] = col;
       positions[index * 3 + 1] = y;
-      positions[index * 3 + 2] = height - 1 - row;
+      positions[index * 3 + 2] = worldZFromNorth(height - 1 - row);
       const rgb = water ? WATER : landRgb(y);
       const shade = water ? 1 : shadeAt(grid, width, height, col, row, y);
       colors[index * 3] = (rgb[0] / 255) * shade;
@@ -285,7 +295,7 @@ export function buildContours(
         for (const [start, end] of lines) {
           const a = point(start);
           const b = point(end);
-          positions.push(a[0], level, a[1], b[0], level, b[1]);
+          positions.push(a[0], level, worldZFromNorth(a[1]), b[0], level, worldZFromNorth(b[1]));
           base.push(level, level);
         }
       }
@@ -318,7 +328,7 @@ function heightRuns(
 ): Array<Array<[number, number, number]>> {
   return lines.map((line) =>
     line.map(([x, z]) => {
-      return [x, sampleSurface(grid, width, height, x, z), z];
+      return [x, sampleSurface(grid, width, height, x, z), worldZFromNorth(z)];
     }),
   );
 }

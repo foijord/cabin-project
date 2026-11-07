@@ -25,7 +25,7 @@ npm run dev
 
 Open `http://localhost:5173/cabin-project/`.
 
-Drag to orbit, right-drag or two fingers to pan, and scroll to zoom. Vertical exaggeration starts at 1×. Reset returns to that and frames the parcel.
+The view opens on the headland, looking north toward the fjord, with the whole shore in frame. Drag to orbit, right-drag or two fingers to pan, and scroll to zoom. Vertical exaggeration starts at 1×. Reset returns to that overview. The model is about 200 m across, not the full 600 m download. East is +x. North is stored as local z and drawn as world −z, so the view is right-handed: with north at the top of the screen, east is on the right. Open water is north and east of the cabin.
 
 ## Rebuild the static site
 

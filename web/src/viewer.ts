@@ -10,6 +10,7 @@ import {
   buildWireframe,
   sampleNearest,
   sampleSurface,
+  worldZFromNorth,
   type HeightOverlay,
   type TerrainBundle,
 } from "./terrain";
@@ -44,14 +45,17 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   renderer.setClearColor(0xc5d5da, 1);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xc5d5da, 240, 980);
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.4, 4000);
+  const span = Math.max(width, height);
+  // Fog starts beyond the far side of the model, so an overview stays clear.
+  scene.fog = new THREE.Fog(0xc5d5da, span * 2.4, span * 3.6);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.35, 2500);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
+  controls.minPolarAngle = 0.08;
   controls.maxPolarAngle = Math.PI * 0.48;
-  controls.minDistance = 16;
-  controls.maxDistance = 1200;
+  controls.minDistance = 12;
+  controls.maxDistance = span * 2.6;
   controls.screenSpacePanning = true;
 
   const terrain: TerrainBundle = buildTerrain(grid, sceneData);
@@ -81,6 +85,8 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   buildingGroup.name = "buildings";
   scene.add(buildingGroup);
   const markers = addBuildings(sceneData, buildingGroup);
+  const northMarker = addNorthMarker(grid, width, height);
+  scene.add(northMarker.object);
 
   const northArrow = document.querySelector<HTMLElement>("#north-arrow");
   const scaleBar = document.querySelector<HTMLElement>("#scale-bar");
@@ -108,6 +114,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     for (const marker of markers) {
       marker.object.position.y = marker.base * exaggeration;
     }
+    northMarker.object.position.y = northMarker.base * exaggeration + 0.8;
     controls.target.y = (sceneData.property.terrainM ?? 4) * exaggeration;
   }
 
@@ -126,16 +133,22 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
 
   function frameProperty() {
     const y = (sceneData.property.terrainM ?? 4) * exaggeration;
-    controls.target.set(sceneData.property.x, y, sceneData.property.z);
-    camera.position.set(sceneData.property.x + 48, y + 38, sceneData.property.z - 72);
+    controls.target.set(sceneData.property.x, y, worldZFromNorth(sceneData.property.z));
+    // South of the cabin, on the land side, looking north toward the fjord.
+    camera.position.set(sceneData.property.x - 8, y + 36, worldZFromNorth(sceneData.property.z) + 62);
     camera.lookAt(controls.target);
     controls.update();
   }
 
   function frameContext() {
-    const y = 12 * exaggeration;
-    controls.target.set((width - 1) / 2, y, (height - 1) / 2);
-    camera.position.set(width * 0.78, 150 + 40 * exaggeration, -40);
+    const y = (sceneData.property.terrainM ?? 4) * exaggeration;
+    controls.target.set(sceneData.property.x, y, worldZFromNorth(sceneData.property.z));
+    const distance = span * 0.92;
+    camera.position.set(
+      sceneData.property.x - span * 0.04,
+      y + distance * 0.78,
+      worldZFromNorth(sceneData.property.z) + distance * 0.72,
+    );
     camera.lookAt(controls.target);
     controls.update();
   }
@@ -144,7 +157,7 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     if (northArrow) {
       camera.updateMatrixWorld();
       const origin = controls.target.clone();
-      const northPoint = origin.clone().add(new THREE.Vector3(0, 0, 40));
+      const northPoint = origin.clone().add(new THREE.Vector3(0, 0, -40));
       origin.project(camera);
       northPoint.project(camera);
       const dx = northPoint.x - origin.x;
@@ -177,13 +190,14 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
       readout.textContent = "Above the terrain";
       return;
     }
-    const nearest = sampleNearest(grid, width, height, hit.x, hit.z);
+    const localNorth = -hit.z;
+    const nearest = sampleNearest(grid, width, height, hit.x, localNorth);
     const easting = sceneData.terrain.westCellCenterEasting + hit.x;
-    const northing = sceneData.terrain.southCellCenterNorthing + hit.z;
-    const inside = pointInPolygons(hit.x, hit.z, sceneData.teig.polygons);
+    const northing = sceneData.terrain.southCellCenterNorthing + localNorth;
+    const inside = pointInPolygons(hit.x, localNorth, sceneData.teig.polygons);
     const place = inside ? "inside 437/109" : "outside 437/109";
     const heightText = Number.isFinite(nearest) ? `${nearest.toFixed(1)} m NN2000` : "sea (DTM value 0)";
-    const building = nearestBuilding(hit.x, hit.z, sceneData.buildings);
+    const building = nearestBuilding(hit.x, localNorth, sceneData.buildings);
     const buildingText = building ? ` · building ${building.bygningsnummer} ${building.bygningsstatus}` : "";
     readout.textContent = `${heightText} · ${Math.round(easting)} E, ${Math.round(northing)} N · ${place}${buildingText}`;
   }
@@ -195,13 +209,14 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
       const x = ray.origin.x + direction.x * distance;
       const y = ray.origin.y + direction.y * distance;
       const z = ray.origin.z + direction.z * distance;
-      const inside = x >= 0 && z >= 0 && x <= width - 1 && z <= height - 1;
+      const localNorth = -z;
+      const inside = x >= 0 && localNorth >= 0 && x <= width - 1 && localNorth <= height - 1;
       if (!inside) {
         if (distance > 30) return null;
         distance += 15;
         continue;
       }
-      const surface = sampleSurface(grid, width, height, x, z) * exaggeration;
+      const surface = sampleSurface(grid, width, height, x, localNorth) * exaggeration;
       if (y <= surface) return new THREE.Vector3(x, surface, z);
       distance += Math.min(30, Math.max(1.2, (y - surface) * 0.5));
     }
@@ -221,7 +236,35 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
 
   resize();
   refreshHeights();
-  frameProperty();
+  frameContext();
+  if (new URLSearchParams(window.location.search).get("topdown") === "1") {
+    const px = sceneData.property.x;
+    const pz = sceneData.property.z;
+    const marker = (x: number, z: number, color: number, name: string) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(4, 20, 16),
+        new THREE.MeshBasicMaterial({ color }),
+      );
+      mesh.position.set(x, 30, worldZFromNorth(z));
+      mesh.name = name;
+      scene.add(mesh);
+    };
+    marker(px + 50, pz, 0xff1744, "east");
+    marker(px - 50, pz, 0xffea00, "west");
+    marker(px, pz + 50, 0x2962ff, "north");
+    marker(px, pz - 50, 0x00c853, "south");
+    scene.fog = null;
+    document.querySelectorAll<HTMLElement>(".panel, .hud").forEach((element) => {
+      element.style.display = "none";
+    });
+    // Geographic north is -Z. Point the camera's up axis that way so north is at the top.
+    camera.up.set(0, 0, -1);
+    camera.fov = 14;
+    camera.position.set(px, 520, worldZFromNorth(pz));
+    camera.lookAt(px, 0, worldZFromNorth(pz));
+    camera.updateProjectionMatrix();
+    controls.enabled = false;
+  }
   animate();
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
@@ -298,11 +341,12 @@ function buildParcelFill(
     for (const [x, z] of ring.slice(1)) shape.lineTo(x, z);
   }
   const geometry = new THREE.ShapeGeometry(shape);
-  geometry.rotateX(Math.PI / 2);
+  // Shape Y is metres north. rotateX(-90°) maps that to world Z = -north.
+  geometry.rotateX(-Math.PI / 2);
   const position = geometry.getAttribute("position") as THREE.BufferAttribute;
   const base = new Float32Array(position.count);
   for (let index = 0; index < position.count; index += 1) {
-    base[index] = sampleSurface(grid, width, height, position.getX(index), position.getZ(index));
+    base[index] = sampleSurface(grid, width, height, position.getX(index), -position.getZ(index));
     position.setY(index, base[index] + 0.55);
   }
   const material = new THREE.MeshBasicMaterial({
@@ -351,7 +395,7 @@ function buildBoundaryRibbon(
           [x1 - ox, z1 - oz, e1],
         ];
         for (const [x, z, elevation] of corners) {
-          positions.push(x, elevation + lift, z);
+          positions.push(x, elevation + lift, worldZFromNorth(z));
           base.push(elevation);
         }
         indices.push(start, start + 1, start + 2, start + 1, start + 3, start + 2);
@@ -389,7 +433,7 @@ function buildParcelLines(
       const base: number[] = [];
       for (const [x, z] of ring) {
         const elevation = sampleSurface(grid, width, height, x, z);
-        positions.push(x, elevation + lift, z);
+        positions.push(x, elevation + lift, worldZFromNorth(z));
         base.push(elevation);
       }
       const geometry = new THREE.BufferGeometry();
@@ -403,6 +447,45 @@ function buildParcelLines(
     }
   }
   return lines;
+}
+
+function addNorthMarker(
+  grid: Float32Array,
+  width: number,
+  height: number,
+): { object: THREE.Group; base: number } {
+  const x = width * 0.5;
+  const z = height - 16;
+  const base = sampleSurface(grid, width, height, x, z);
+  const group = new THREE.Group();
+  const green = new THREE.MeshBasicMaterial({ color: 0x1e6a52 });
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 12), green);
+  shaft.position.z = -2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(3.1, 7, 4), green);
+  // Cone points +Y. -90° about X aims it at -Z, which is north.
+  head.rotation.x = -Math.PI / 2;
+  head.position.z = -7;
+  shaft.position.z = 2;
+  group.add(shaft, head);
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#1e6a52";
+    context.font = "bold 84px Palatino, Georgia, serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("N", 64, 70);
+  }
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }),
+  );
+  sprite.position.set(0, 6, -8);
+  sprite.scale.set(8, 8, 1);
+  group.add(sprite);
+  group.position.set(x, base + 0.8, worldZFromNorth(z));
+  return { object: group, base };
 }
 
 function addBuildings(sceneData: Scene, group: THREE.Group): Marker[] {
@@ -438,7 +521,7 @@ function addBuildings(sceneData: Scene, group: THREE.Group): Marker[] {
       ring.position.y = 0.4;
       object = ring;
     }
-    object.position.set(building.x, base, building.z);
+    object.position.set(building.x, base, worldZFromNorth(building.z));
     group.add(object);
     markers.push({ object, building, base });
   }

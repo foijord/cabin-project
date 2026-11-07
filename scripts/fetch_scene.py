@@ -29,6 +29,9 @@ PROVENANCE_JSON = ROOT / "data" / "provenance.json"
 USER_AGENT = "cabin-project/1.0 (public Geonorge extract; +https://github.com/foijord/cabin-project)"
 ADDRESS_QUERY = "Kalsneset 27 Søgne"
 HALF_EXTENT_M = 300
+# Metres of DTM kept around the registered parcel. The download stays 600 m;
+# the viewer shows this tighter window, including the shore to the north and east.
+DISPLAY_MARGIN_M = 95
 
 # Names from SSB Klass classification 31, "Standard for bygningstype / Matrikkelen",
 # codesAt 2026-11-07. The classification record says copyrighted: false.
@@ -412,6 +415,46 @@ def round_ring(ring: list[list[float]], origin_e: float, origin_n: float) -> lis
     return [[round(x - origin_e, 2), round(y - origin_n, 2)] for x, y in ring]
 
 
+def crop_to_parcel(
+    elevations: np.ndarray,
+    west_center: float,
+    north_center: float,
+    transform,
+    polygons: list[dict],
+) -> tuple[np.ndarray, float, float, dict]:
+    """Slice the georeferenced grid without resampling or flipping axes.
+
+    Column 0 stays west. Row 0 stays north. Positive local x is east and
+    positive local z is north, matching the full extract.
+    """
+    xs = [point[0] for polygon in polygons for point in polygon["exterior"]]
+    ys = [point[1] for polygon in polygons for point in polygon["exterior"]]
+    min_east = min(xs) - DISPLAY_MARGIN_M
+    max_east = max(xs) + DISPLAY_MARGIN_M
+    min_north = min(ys) - DISPLAY_MARGIN_M
+    max_north = max(ys) + DISPLAY_MARGIN_M
+    col0 = max(0, int(math.floor((min_east - west_center) / transform.a)))
+    col1 = min(elevations.shape[1] - 1, int(math.ceil((max_east - west_center) / transform.a)))
+    # transform.e is negative, so a larger northing is a smaller row.
+    row0 = max(0, int(math.floor((max_north - north_center) / transform.e)))
+    row1 = min(elevations.shape[0] - 1, int(math.ceil((min_north - north_center) / transform.e)))
+    if col1 <= col0 or row1 <= row0:
+        raise RuntimeError("Display window collapsed while cropping the terrain")
+    cropped = elevations[row0 : row1 + 1, col0 : col1 + 1]
+    new_west = west_center + col0 * transform.a
+    new_north = north_center + row0 * transform.e
+    window = {
+        "marginM": DISPLAY_MARGIN_M,
+        "sourceRow0": row0,
+        "sourceRow1": row1,
+        "sourceCol0": col0,
+        "sourceCol1": col1,
+        "sourceWidth": int(elevations.shape[1]),
+        "sourceHeight": int(elevations.shape[0]),
+    }
+    return cropped, new_west, new_north, window
+
+
 def main() -> None:
     RAW.mkdir(parents=True, exist_ok=True)
     PUBLIC.mkdir(parents=True, exist_ok=True)
@@ -502,6 +545,44 @@ def main() -> None:
     subject_buildings = [item for item in buildings if item["onSubjectParcel"]]
     if not any(item["bygningstype"] == "161" for item in subject_buildings):
         raise RuntimeError("No fritidsbygning point on 437/109")
+
+    elevations, west_center, north_center, display_window = crop_to_parcel(
+        elevations,
+        west_center,
+        north_center,
+        transform,
+        subject_teig["polygons"],
+    )
+    grid = elevations
+    holes = holes[
+        display_window["sourceRow0"] : display_window["sourceRow1"] + 1,
+        display_window["sourceCol0"] : display_window["sourceCol1"] + 1,
+    ]
+    south_center = north_center + (elevations.shape[0] - 1) * transform.e
+    finite_land = elevations[np.isfinite(elevations)]
+    sea = ~np.isfinite(elevations)
+
+    def inside_view(x_e: float, y_n: float, pad: float = 2) -> bool:
+        return (
+            west_center - pad <= x_e <= west_center + elevations.shape[1] - 1 + pad
+            and south_center - pad <= y_n <= north_center + pad
+        )
+
+    buildings = [item for item in buildings if inside_view(item["easting"], item["northing"])]
+    subject_buildings = [item for item in buildings if item["onSubjectParcel"]]
+
+    def teig_intersects_view(teig: dict) -> bool:
+        for polygon in teig["polygons"]:
+            xs = [point[0] for point in polygon["exterior"]]
+            ys = [point[1] for point in polygon["exterior"]]
+            if max(xs) < west_center or min(xs) > west_center + elevations.shape[1]:
+                continue
+            if max(ys) < south_center or min(ys) > north_center:
+                continue
+            return True
+        return False
+
+    teigs = [teig for teig in teigs if teig_intersects_view(teig) or teig is subject_teig]
 
     bin_path = PUBLIC / "terrain.bin"
     bin_path.write_bytes(elevations.astype("<f4").tobytes())
@@ -604,6 +685,8 @@ def main() -> None:
             "cellSizeM": 1,
             "registration": "cell-center",
             "row0": "north",
+            "axes": {"x": "east", "y": "up", "z": "north"},
+            "displayWindow": display_window,
             "westCellCenterEasting": west_center,
             "southCellCenterNorthing": south_center,
             "northCellCenterNorthing": north_center,
@@ -680,6 +763,12 @@ def main() -> None:
             "openProjectNote": (
                 "Of the project polygons containing this address, Søgne 2013 is the only one "
                 "with BEST_OPEN=1. The WCS grid does not carry a per-cell project id."
+            ),
+            "displayWindow": display_window,
+            "orientation": (
+                "The GeoTIFF and the scene file are north-up: local x is east and local z is north. "
+                "Three.js is right-handed and Y-up, so the renderer uses world Z = -local z. "
+                "80 m north of the address is sea, 80 m south is higher land, and 80 m west is higher than 80 m east."
             ),
         },
         "cadastre": {
