@@ -118,6 +118,34 @@ def main() -> None:
     ring = scene["teig"]["polygons"][0]["exterior"]
     if not point_in_ring(property_["x"], property_["z"], ring):
         raise SystemExit("address point is outside the parcel ring")
+    shore_northings = []
+    inland_northings = []
+    west_origin = scene["terrain"]["westCellCenterEasting"]
+    south_origin = scene["terrain"]["southCellCenterNorthing"]
+    with rasterio.open(TIF_PATH) as dataset:
+        dem = dataset.read(1)
+        for x, z in ring:
+            easting = west_origin + x
+            northing = south_origin + z
+            row, col = dataset.index(easting, northing)
+            nearest_sea = None
+            for d_row in range(-12, 13):
+                for d_col in range(-12, 13):
+                    rr, cc = row + d_row, col + d_col
+                    if 0 <= rr < dem.shape[0] and 0 <= cc < dem.shape[1] and dem[rr, cc] == 0.0:
+                        distance = (d_row**2 + d_col**2) ** 0.5
+                        if nearest_sea is None or distance < nearest_sea:
+                            nearest_sea = distance
+            if nearest_sea is not None and nearest_sea <= 5:
+                shore_northings.append(northing)
+            elif nearest_sea is not None and nearest_sea >= 15:
+                inland_northings.append(northing)
+    if len(shore_northings) < 10:
+        raise SystemExit("parcel shore is not registered to the DTM water edge")
+    if sum(shore_northings) / len(shore_northings) <= anchor_n:
+        raise SystemExit("parcel shore vertices are not north of the address in the GeoTIFF")
+    if inland_northings and sum(inland_northings) / len(inland_northings) >= anchor_n:
+        raise SystemExit("parcel inland vertices are not south of the address")
     if property_["terrainM"] is None or not 2.5 < property_["terrainM"] < 6:
         raise SystemExit(f"unexpected address elevation {property_['terrainM']}")
     standing = [

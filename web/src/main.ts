@@ -89,7 +89,8 @@ function fillPanel(scene: Scene) {
   const otherCount = scene.buildings.length - onParcel.length;
   const other = document.querySelector("#other-buildings");
   if (other) {
-    other.textContent = `${otherCount} other Matrikkelen points in this 600 m view are shown smaller. Status GR is approved demolished or burned.`;
+    const span = Math.max(scene.terrain.width, scene.terrain.height);
+    other.textContent = `${otherCount} other Matrikkelen points in this ${span} m view are shown smaller. Status GR is approved demolished or burned.`;
   }
   const sources = document.querySelector("#sources");
   if (sources) {

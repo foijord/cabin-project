@@ -766,9 +766,9 @@ def main() -> None:
             ),
             "displayWindow": display_window,
             "orientation": (
-                "Row 0 of the GeoTIFF is north. Viewer x increases east and z increases north. "
-                "Checked against the same grid: 80 m north of the address is sea, 80 m south is higher land, "
-                "and 80 m west is higher than 80 m east. Open water lies north and east of the cabin."
+                "The GeoTIFF and the scene file are north-up: local x is east and local z is north. "
+                "Three.js is right-handed and Y-up, so the renderer uses world Z = -local z. "
+                "80 m north of the address is sea, 80 m south is higher land, and 80 m west is higher than 80 m east."
             ),
         },
         "cadastre": {

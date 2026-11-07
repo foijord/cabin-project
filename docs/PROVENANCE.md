@@ -99,18 +99,13 @@ No roof height, storey count, or footprint is in this open extract. None is inve
 
 ## Orientation
 
-The GeoTIFF from the WCS is north-up: row 0 is the northern edge (`transform.e` is −1). The viewer does not flip it. Local x increases east and local z increases north.
+The GeoTIFF is north-up. In the scene file, local x is metres east and local z is metres north. Those file coordinates are not swapped.
 
-Checked on this extract, 80 m from the address point at 425021.002 E, 6435682.001 N:
+Three.js is right-handed and Y-up. East × up is south, not north, so storing world Z as north makes a left-handed basis. A north-up camera then draws east on the left of the screen. The rendered fix is `world Z = -local north`. A top-down view with geographic north at the top of the screen then has the east control on the right.
 
-| Offset | Raw elevation | Meaning |
-| --- | --- | --- |
-| 80 m north | 0.0 m | Sea, stored as no measurement |
-| 80 m south | 9.86 m | Higher land |
-| 80 m west | 6.21 m | Higher than the east |
-| 80 m east | 3.37 m | Lower ground toward the water |
+The parcel and the terrain use the same local metres. In map space, 62 of 66 parcel vertices are within 8 m of a DTM zero cell (median distance 0 m), and about 90% of the polygon is on land. The address point is inside the polygon. That is registration, not a second axis swap. The water edge is the Matrikkelen helper line `Hjelpelinje vannkant`; it follows the DTM water closely on this teig, with a fringe of sea cells inside the polygon.
 
-An east-west or north-south mirror would swap those pairs. OpenStreetMap shows the same arrangement: Søviggfjorden is north of the cabin and the shore also opens to the east. That map was used only as a direction check and is not part of the model. The earlier view looked wrong because the camera stood to the east, over the water, looking inland, and fog hid the rest of the shore before the camera could zoom out.
+Checked on this extract, 80 m from 425021.002 E, 6435682.001 N: north is sea (0.0 m), south is 9.86 m, west is 6.21 m, and east is 3.37 m.
 
 ## Processing
 
