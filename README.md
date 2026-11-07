@@ -50,13 +50,17 @@ The script downloads a 600 m extract from the public Geonorge services and rewri
 
 ## Publish on GitHub Pages
 
-The workflow in `.github/workflows/pages.yml` builds `web/dist` and deploys it with GitHub Actions. It runs from `main`.
+The workflow in `.github/workflows/pages.yml` builds `web/dist` and deploys with GitHub Actions. It is not on `main` yet, and this integration cannot turn Pages on.
 
-1. Merge the pull request into `main`.
-2. In the repository settings, open **Pages** and set the source to **GitHub Actions**.
-3. Open `https://foijord.github.io/cabin-project/` after the workflow succeeds.
+`GET /repos/foijord/cabin-project/pages` returns HTTP 403 with `X-Accepted-GitHub-Permissions: pages=read` and body `Resource not accessible by integration`. GitHub documents that header as the permission the app token lacks. A missing Pages site would be HTTP 404 after the app had `pages=read`. The repository record itself says `has_pages: false`. The workflow file is absent from `main` (contents API 404) and present on `cursor/terrain-viewer-81cc`. GitHub only runs `workflow_dispatch` once that file exists on the default branch, so this branch cannot be dispatched into a Pages deploy.
 
-The repository stays private. A GitHub Pages site can still be public. The published files are only this terrain view and the public-source property location.
+Owner steps, with the repository kept private:
+
+1. On a personal account, GitHub Pages for a private repository requires GitHub Pro or a higher plan. GitHub Free includes Pages only for public repositories. This token cannot see the account plan. Do not make the repository public, and do not change the plan from here.
+2. As the repository admin, open **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**. The app token is not an admin and cannot do this.
+3. Merge the pull request into `main`. That push is what starts the workflow. Merge has not been requested yet.
+
+After the workflow succeeds, check `https://foijord.github.io/cabin-project/` in a browser, including `/cabin-project/assets/`. The site is public on the internet even though the repository stays private. A privately visible Pages site would require GitHub Enterprise Cloud on an organization, which this user-owned repository is not.
 
 ## Credit
 
