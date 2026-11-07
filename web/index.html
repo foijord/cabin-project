@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kalsneset 27 · terrain</title>
+    <meta
+      name="description"
+      content="Planning view of the public terrain model for Kalsneset 27, Søgne. Not a survey and not a legal map."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view" aria-label="Three-dimensional terrain model"></canvas>
+      <aside class="panel" id="panel">
+        <div id="facts"></div>
+        <section class="controls">
+          <div class="row">
+            <label for="exaggeration">Vertical exaggeration <span id="exaggeration-value">1.0×</span></label>
+            <input id="exaggeration" type="range" min="1" max="4" step="0.1" value="1" />
+          </div>
+          <div class="checks">
+            <label><input id="relief" type="checkbox" checked /> Relief colour</label>
+            <label><input id="contours" type="checkbox" checked /> Contours</label>
+            <label>
+              Interval
+              <select id="contour-interval">
+                <option value="2">2 m</option>
+                <option value="5" selected>5 m</option>
+                <option value="10">10 m</option>
+              </select>
+            </label>
+            <label><input id="wire" type="checkbox" /> 10 m wireframe</label>
+            <label><input id="grid" type="checkbox" checked /> 100 m grid</label>
+            <label><input id="parcels" type="checkbox" checked /> Parcels</label>
+            <label><input id="show-buildings" type="checkbox" checked /> Building points</label>
+          </div>
+          <div class="buttons">
+            <button id="frame-property" type="button">Property</button>
+            <button id="frame-context" type="button">Wider land</button>
+            <button id="reset-view" type="button">Reset 1×</button>
+          </div>
+          <p class="hint">Drag to orbit. Right-drag or two fingers to pan. Scroll to zoom. R resets the view.</p>
+        </section>
+        <section>
+          <h2>Buildings on 437/109</h2>
+          <ul id="buildings"></ul>
+          <p id="other-buildings" class="note"></p>
+        </section>
+        <details>
+          <summary>Sources, datum and accuracy</summary>
+          <div id="sources" class="sources"></div>
+        </details>
+      </aside>
+      <div class="hud">
+        <div id="north" class="north" title="North">
+          <div id="north-arrow" class="north-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 32" width="18" height="26">
+              <path d="M12 1 L20 14 H15 V31 H9 V14 H4 Z" fill="#1e6a52" />
+            </svg>
+          </div>
+        </div>
+        <p id="readout">Move over the terrain</p>
+        <div class="scale">
+          <span id="scale-bar"></span>
+          <span id="scale-label">100 m</span>
+        </div>
+      </div>
+      <div id="loader" class="loader">
+        <div>
+          <p>Loading the terrain model…</p>
+        </div>
+      </div>
+      <p id="error" class="error" hidden></p>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

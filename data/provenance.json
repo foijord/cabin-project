@@ -1,0 +1,208 @@
+{
+  "retrievedAt": "2026-11-07T11:17:58+00:00",
+  "address": {
+    "request": "https://ws.geonorge.no/adresser/v1/sok?sok=Kalsneset+27+S%C3%B8gne&treffPerSide=5",
+    "licence": "CC BY 4.0",
+    "source": "Kartverket Adresse REST API, Matrikkelen",
+    "documentation": "https://kartverket.no/api-og-data/eiendomsdata/brukarrettleiing-adresse-api",
+    "totalHits": 1,
+    "adressetekst": "Kalsneset 27",
+    "stedfestingVerifisert": false,
+    "representasjonspunkt": {
+      "epsg": "EPSG:4258",
+      "lat": 58.05628457136394,
+      "lon": 7.729477550524254
+    },
+    "utm32Easting": 425021.0019314188,
+    "utm32Northing": 6435682.001171271,
+    "gardsnummer": 437,
+    "bruksnummer": 109,
+    "festenummer": 0,
+    "kommunenummer": "4204"
+  },
+  "terrain": {
+    "request": "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832?service=WCS&version=1.0.0&request=GetCoverage&coverage=nhm_dtm_topo_25832&crs=EPSG%3A25832&bbox=424721%2C6435382%2C425321%2C6435982&width=600&height=600&format=GeoTIFF",
+    "service": "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25832",
+    "coverage": "nhm_dtm_topo_25832",
+    "documentation": "https://kartkatalog.geonorge.no/metadata/uuid/05821c51-2f5b-411f-9098-924d13dbea9a",
+    "dataset": "https://kartkatalog.geonorge.no/metadata/uuid/f297e948-8a34-4e6c-9740-54b3a657f8d5",
+    "licenceStatement": "Geonorge records Høydedata - laser as open data: no conditions apply to access and use.",
+    "attribution": "© Kartverket",
+    "file": "data/raw/dtm.tif",
+    "sha256": "e504ba4b12ba43e825c1c447673837b8b5d67ec9262ea0cca41bca63223b8141",
+    "bytes": 1508662,
+    "crs": "EPSG:25832",
+    "crsName": "ETRS89 / UTM zone 32N",
+    "verticalDatum": "EPSG:5941 NN2000 height",
+    "bboxEastingNorthing": [
+      424721,
+      6435382,
+      425321,
+      6435982
+    ],
+    "width": 600,
+    "height": 600,
+    "cellSizeM": 1,
+    "nodataTag": null,
+    "geotiffTags": {
+      "DataType": "Generic",
+      "AREA_OR_POINT": "Area"
+    },
+    "min": -0.413756400346756,
+    "max": 57.446319580078125,
+    "exactZeroCells": 150563,
+    "seaCellsConnectedToBorder": 150551,
+    "inlandZeroCellsFilled": 12,
+    "addressSampleM": 3.5635204315185547,
+    "projectsRequest": "https://wfs.geonorge.no/skwms1/wfs.hoyde-hoydedata-metadata-prosjekt?service=WFS&version=2.0.0&request=GetFeature&typeNames=metadata_prosjekt%3AProsjektavgrensning&srsName=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25833&bbox=71028.5%2C6457699.0%2C71828.5%2C6458499.0%2Curn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25833&count=50",
+    "projects": [
+      {
+        "projectId": "30",
+        "name": "Søgne 2013",
+        "year": "2013",
+        "lastFlightDate": "2013-04-30T00:00:00",
+        "pointDensityPerM2": "3.00000000",
+        "resolutionM": "0.50000000",
+        "horizontalEpsg": "25832",
+        "verticalCode": "5941",
+        "dtmInterpolation": "Triangulate with Natural Neighbor Interpolation",
+        "best": "1",
+        "bestOpen": "1",
+        "typeCode": "1",
+        "accessCode": "1",
+        "client": "Kartverket",
+        "standard": "10",
+        "note": null,
+        "published": "published"
+      },
+      {
+        "projectId": "1022",
+        "name": "Trysnes 2010",
+        "year": "2010",
+        "lastFlightDate": "2010-01-01T00:00:00",
+        "pointDensityPerM2": "2.00000000",
+        "resolutionM": "0.50000000",
+        "horizontalEpsg": "25832",
+        "verticalCode": "5941",
+        "dtmInterpolation": "Triangulate with Natural Neighbor Interpolation",
+        "best": "0",
+        "bestOpen": "0",
+        "typeCode": "1",
+        "accessCode": "1",
+        "client": "Kartverket Kristiansand",
+        "standard": "10",
+        "note": null,
+        "published": "published"
+      },
+      {
+        "projectId": "4217",
+        "name": "Kristiansand 2020",
+        "year": "2020",
+        "lastFlightDate": "2020-04-06T00:00:00",
+        "pointDensityPerM2": "5.00000000",
+        "resolutionM": "0.25000000",
+        "horizontalEpsg": "25832",
+        "verticalCode": "5941",
+        "dtmInterpolation": "Triangulate with Natural Neighbor Interpolation",
+        "best": "1",
+        "bestOpen": "0",
+        "typeCode": "1",
+        "accessCode": "2",
+        "client": "Kartverket Agder",
+        "standard": "FKB-Laser-B-DTM10",
+        "note": "Intensitet levert som reflektans",
+        "published": "published"
+      },
+      {
+        "projectId": "5668",
+        "name": "Bilde Agder og Telemark 2021 Del 8 av 8",
+        "year": "2021",
+        "lastFlightDate": "2021-01-01T00:00:00",
+        "pointDensityPerM2": "4.00000000",
+        "resolutionM": "0.25000000",
+        "horizontalEpsg": "25832",
+        "verticalCode": "5941",
+        "dtmInterpolation": "Triangulate with Natural Neighbor Interpolation",
+        "best": "0",
+        "bestOpen": "0",
+        "typeCode": "2",
+        "accessCode": "1",
+        "client": "Omløpsfoto",
+        "standard": "50",
+        "note": "Punktsky framkommet etter bildematching av omløpsfotografering.",
+        "published": "published"
+      }
+    ],
+    "openProjectNote": "Of the project polygons containing this address, Søgne 2013 is the only one with BEST_OPEN=1. The WCS grid does not carry a per-cell project id."
+  },
+  "cadastre": {
+    "request": "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-eiendomskart-teig?service=WFS&version=2.0.0&request=GetFeature&typeNames=app%3ATeig&srsName=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&bbox=424721%2C6435382%2C425321%2C6435982%2Curn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&count=500",
+    "documentation": "https://kartkatalog.geonorge.no/metadata/matrikkelen-eiendomskart-teig-wfs/339d49c3-06a5-4310-9605-fced1fe465cb",
+    "licence": "CC BY 4.0",
+    "featureType": "app:Teig",
+    "teigCountInView": 55,
+    "subject": {
+      "matrikkelnummer": "437/109",
+      "bruksnavn": "SJØSTRAND",
+      "teigId": "215975187",
+      "arealM2": "1258.5",
+      "arealmerknad": "Hjelpelinje vannkant",
+      "noyaktighetsklasseTeig": "Gult",
+      "datafangstdato": "1999-03-25T23:00:00",
+      "oppdateringsdato": "2020-06-16T04:32:57.823",
+      "qualityNote": "Produktspesifikasjonen for Matrikkelen Eiendomskart Teig describes Gult as a traffic-light class: one or more boundaries are of lesser quality, disputed, or a road-edge or shoreline helper line. This teig carries arealmerknad 'Hjelpelinje vannkant'."
+    }
+  },
+  "buildings": {
+    "request": "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-bygningspunkt?service=WFS&version=2.0.0&request=GetFeature&typeNames=app%3ABygning&srsName=urn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&bbox=424721%2C6435382%2C425321%2C6435982%2Curn%3Aogc%3Adef%3Acrs%3AEPSG%3A%3A25832&count=500",
+    "documentation": "https://kartkatalog.geonorge.no/metadata/matrikkelen-bygningspunkt-wfs/c750a3f5-1cb8-46aa-a5eb-e13ee0cb9689",
+    "licence": "CC BY 4.0",
+    "geometry": "point",
+    "countInView": 75,
+    "onSubject": [
+      {
+        "bygningsnummer": "169165513",
+        "type": "161",
+        "typeName": "Fritidsbygning (hytter, sommerhus o.l.)",
+        "status": "TB",
+        "statusName": "Bygning er tatt i bruk",
+        "stedfestingVerifisert": "false",
+        "easting": 425021.0,
+        "northing": 6435682.0
+      },
+      {
+        "bygningsnummer": "19514692",
+        "type": "182",
+        "typeName": "Garasje, uthus, anneks knyttet til fritidsbolig",
+        "status": "GR",
+        "statusName": "Bygning godkjent revet/brent",
+        "stedfestingVerifisert": "false",
+        "easting": 425002.0,
+        "northing": 6435691.0
+      },
+      {
+        "bygningsnummer": "169165505",
+        "type": "182",
+        "typeName": "Garasje, uthus, anneks knyttet til fritidsbolig",
+        "status": "GR",
+        "statusName": "Bygning godkjent revet/brent",
+        "stedfestingVerifisert": "false",
+        "easting": 425009.0,
+        "northing": 6435696.0
+      }
+    ],
+    "footprints": "Not included. FKB-Bygning is Norge digitalt-restricted. The INSPIRE Buildings WFS URL published in the Geonorge register, https://wfs.geonorge.no/skwms1/wfs.inspire-bu-core2d , returned 'UKJENT APPLIKASJON' on this date. No roof heights are invented.",
+    "typeNameSource": "https://data.ssb.no/api/klass/v1/classifications/31/codesAt?date=2026-11-07",
+    "statusNameSource": "https://objektkatalog.geonorge.no/Objekttype/Index/EAID_E2CABF01_4006_4241_9D0D_2EA96D3DDC77"
+  },
+  "imagery": {
+    "included": false,
+    "reason": "Norge i bilder orthophoto is published under the Norge digitalt licence and is not open for rehosting. No aerial photograph is bundled. Relief colour is computed from the DTM.",
+    "reference": "https://kartkatalog.geonorge.no/metadata/norge-i-bilder-wms-ortofoto-ny/d6611216-1c4a-4fed-9953-cbdee8832ee0"
+  },
+  "notUsed": [
+    "The point-height API https://ws.geonorge.no/hoyde/v1/punkt returned HTTP 403 from this environment.",
+    "No Google or other commercial satellite imagery.",
+    "No zoning or regulation map. An earlier plan interpretation was not verified and is not used."
+  ]
+}
