@@ -94,11 +94,13 @@ On matrikkelenhet 215462560 (437/109):
 
 GR is the register’s own status. This viewer does not decide whether those buildings are still on the ground.
 
-No roof height, storey count, or footprint is in this open extract. None is invented. The post height is a map symbol.
+No roof height, storey count, or footprint is in this open extract. The posts and rings are still map symbols.
+
+Photo models added on 8 November 2026 sit on this same DTM. They use OpenStreetMap outlines tagged with the three on-parcel building numbers. Wall and roof metres are estimates, written in `web/src/photo-buildings.json` and explained in [BUILDINGS.md](BUILDINGS.md). The DTM grid was not replaced. Official footprints were not added. The two outbuildings stay status GR in the register; the models do not change that.
 
 ## Not included
 
-- **Orthophoto.** Norge i bilder is under the Norge digitalt licence and requires a token. It is not rehosted. Relief colour is calculated from the terrain.
+- **Orthophoto raster.** Norge i bilder WMS requires a token and is under the Norge digitalt licence. It is not rehosted. On 8 November 2026 the public innsyn client was used to look at the roofs; the image was not copied into this repository. Relief colour is still calculated from the terrain. See [BUILDINGS.md](BUILDINGS.md).
 - **Building footprints.** FKB-Bygning is Norge digitalt-restricted. The INSPIRE Buildings WFS URL still listed by Geonorge, `https://wfs.geonorge.no/skwms1/wfs.inspire-bu-core2d`, returned “UKJENT APPLIKASJON” on 7 November 2026.
 - **Zoning or regulation.** No plan map is used.
 - **Commercial satellite imagery.** None.

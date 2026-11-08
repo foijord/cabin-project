@@ -1,0 +1,127 @@
+{
+  "disclaimer": "Planning shapes for the family cabin. Footprints are community map outlines tied to Matrikkelen building numbers. Lengths, wall heights, roof rises, colours and the boathouse identity are estimates. This is not a survey, not a construction model, and not a legal boundary.",
+  "generatedNote": "Checked 8 November 2026 against the public Norge i bilder innsyn client, the Søgne 2013 DTM already in this viewer, a handful of Søgne 2013 surface-model point samples, OpenStreetMap, and one family overhead photograph. The two oblique waterfront photographs mentioned with that photo were not available here and were not used. A high-water shoreline in one of those photographs was not used.",
+  "buildings": [
+    {
+      "id": "main-cabin",
+      "label": "Main cabin",
+      "role": "cabin",
+      "registerBygningsnummer": "169165513",
+      "osmWayId": 936839960,
+      "footprint": [
+        [120.65, 111.48],
+        [117.08, 109.76],
+        [119.46, 104.83],
+        [122.97, 106.51],
+        [126.52, 99.13],
+        [130.49, 101.04],
+        [131.52, 98.9],
+        [137.59, 101.82],
+        [135.66, 105.83],
+        [131.75, 103.95],
+        [126.62, 114.6],
+        [120.55, 111.68]
+      ],
+      "wallColor": "#d7d2c8",
+      "roofColor": "#3e4248",
+      "foundationColor": "#8d877c",
+      "wallHeightM": 2.5,
+      "roofRiseM": 0.45,
+      "roofForm": "shed-north",
+      "roofOverhangM": 0,
+      "floor": {
+        "percentile": 0.4,
+        "foundationPercentile": 0.08,
+        "maxFoundationM": 1.15,
+        "minFloorM": null
+      },
+      "dimensionsAreEstimates": true,
+      "identification": "The standing registered leisure building, type 161, status TB. The grey broad roof in the family overhead photo and in the public orthophoto view. The southwest step of this outline is the lower roof volume beside the parking area. Whether that step is an extension or a separate structure is not confirmed, so it is kept inside this one footprint.",
+      "estimates": {
+        "footprint": "OpenStreetMap way 936839960, tagged ref:bygningsnr 169165513, retrieved 8 November 2026. Community outline under ODbL, not a surveyed footprint. It contains the unverified Matrikkelen point.",
+        "height": "Eave 2.5 m and rise 0.45 m are photo estimates for a low dark roof. A Søgne 2013 DOM identify at the register point (425021 E, 6435682 N) returned 7.18 m against a DTM sample of about 3.63 m, roughly 3.5 m above local ground. That one sample is not an eave or a ridge measurement, and the raster is catalogued TILGANG 2, so the surface grid was not downloaded.",
+        "color": "Dark grey roof and pale walls, from the family overhead photo. The public nadir view shows the same dark roof. Not a colour measurement."
+      },
+      "features": [
+        {
+          "kind": "skylight",
+          "at": [133.2, 102.4],
+          "sizeM": [1.3, 0.08, 0.9],
+          "color": "#c5cdd0"
+        },
+        {
+          "kind": "vent",
+          "at": [128.4, 107.2],
+          "sizeM": [0.45, 0.12, 0.45],
+          "color": "#eceae4"
+        }
+      ]
+    },
+    {
+      "id": "annex",
+      "label": "Annex on the rock",
+      "role": "annex",
+      "registerBygningsnummer": "19514692",
+      "osmWayId": 936840733,
+      "footprint": [
+        [111.7, 117.55],
+        [105.43, 122.11],
+        [102.54, 118.17],
+        [108.81, 113.61]
+      ],
+      "wallColor": "#8d3b34",
+      "roofColor": "#2f3136",
+      "foundationColor": "#5c4038",
+      "wallHeightM": 2.3,
+      "roofRiseM": 1.0,
+      "roofForm": "gable",
+      "roofOverhangM": 0.16,
+      "floor": {
+        "percentile": 0.45,
+        "foundationPercentile": 0.1,
+        "maxFoundationM": 1.2,
+        "minFloorM": null
+      },
+      "dimensionsAreEstimates": true,
+      "identification": "Guess, and the best positional match for the red annex on the rock to the right of the cabin when looking inland from the water: it is the western on-parcel outbuilding, and the ground under it is higher than under the water-side shed. The register still says type 182 and status GR, approved demolished or burned. This model does not say the register building is standing. Neighbour cabin 169165521, the red roof to the east, is not this annex.",
+      "estimates": {
+        "footprint": "OpenStreetMap way 936840733, tagged ref:bygningsnr 19514692. About 7.8 m by 4.9 m. Community outline, not a survey. The register point lies inside it and is not position-verified.",
+        "height": "Wall 2.3 m and gable rise 1.0 m are photo estimates. DOM identify at the register point returned 7.70 m. The DTM at that point is about 4.18 m, so the surface sample is about 3.5 m above the ground. Same TILGANG 2 limit as the cabin: one point sample, not a downloaded surface grid, and not a measured ridge.",
+        "color": "Muted red walls and a dark roof. The red comes from the family overhead photo of the elevated annex. The public nadir view shows a dark roof on this outline; wall colour is not readable straight down."
+      }
+    },
+    {
+      "id": "waterfront-outbuilding",
+      "label": "Water-side outbuilding",
+      "role": "boathouse",
+      "registerBygningsnummer": "169165505",
+      "osmWayId": 936839961,
+      "footprint": [
+        [111.6, 121.99],
+        [116.84, 118.11],
+        [118.98, 120.99],
+        [113.74, 124.87]
+      ],
+      "wallColor": "#7a403c",
+      "roofColor": "#34363a",
+      "foundationColor": "#4e3a36",
+      "wallHeightM": 2.1,
+      "roofRiseM": 0.85,
+      "roofForm": "gable",
+      "roofOverhangM": 0.14,
+      "floor": {
+        "percentile": 0.62,
+        "foundationPercentile": 0.05,
+        "maxFoundationM": 1.45,
+        "minFloorM": 1.0
+      },
+      "dimensionsAreEstimates": true,
+      "identification": "Guess. This is the on-parcel outbuilding closest to the sea, so the planning model uses it for the red waterfront boathouse. The register calls it type 182, an outbuilding with the leisure building, status GR, not type 183 naust. Registered naust 9037489 is on a neighbouring parcel and is not drawn as this boathouse. The family description says the boathouse is red. The public nadir view shows a small dark roof on grass and rock above the shore, not a measured red facade.",
+      "estimates": {
+        "footprint": "OpenStreetMap way 936839961, tagged ref:bygningsnr 169165505. About 6.5 m by 3.6 m. Community outline. The whole ring is inside parcel 437/109. Position is not field-verified.",
+        "height": "Wall 2.1 m and gable rise 0.85 m are approximate, not taken from the surface model. DOM identify at the register point returned 3.24 m, only about 1 m above the DTM sample of 2.26 m. That difference is too small to be a roof height: the 2013 sample may have missed the roof, or the building in later photos is not what the 2013 surface shows. The floor is held at least 1.0 m NN2000 so the shell is not dropped onto the near-zero shore cells. Normal sea in this DTM is the zero encoding. A high-water line from a family photo was not used.",
+        "color": "Muted red walls and a dark roof, as a visible guess. Red is the family description. The nadir roof reads dark."
+      }
+    }
+  ]
+}
