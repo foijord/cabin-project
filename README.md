@@ -4,6 +4,8 @@ A static 3D view of the cabin property at **Kalsneset 27, 4641 Søgne, Kristians
 
 This is a planning picture for a family project. It is not a survey, not a construction model, and not a legal boundary plan.
 
+The grey cabin, the red annex on the rock, and the smaller water-side outbuilding are photo models. Their outlines follow OpenStreetMap ways that carry the same Matrikkelen building numbers, and they sit on the Søgne 2013 terrain. Wall heights, roof shapes and colours are estimates. The water-side building is a guess for the boathouse: the register does not call it a naust, and the neighbour’s registered boathouse is not used. Details, imagery dates and the elevation samples are in [docs/BUILDINGS.md](docs/BUILDINGS.md).
+
 ## What the model uses
 
 | Layer | Source | What it is |
@@ -11,7 +13,8 @@ This is a planning picture for a family project. It is not a survey, not a const
 | Terrain | Kartverket Søgne 2013 DTM, native 0.5 m grid | Bare earth, NN2000. Grid spacing is not a surveyed accuracy |
 | Address | Kartverket address API | One official hit |
 | Parcel | Matrikkelen eiendomskart teig | Registered polygon 4204-437/109 |
-| Buildings | Matrikkelen building points | Points only, no roof heights |
+| Buildings | Matrikkelen building points | Points only, no official roof heights |
+| Photo models | OpenStreetMap outlines for three on-parcel numbers, plus the family overhead photo | Estimated walls, roofs and colours. See [docs/BUILDINGS.md](docs/BUILDINGS.md) |
 
 Orthophotos and building footprints are not in the model. Norge i bilder and FKB-Bygning are not open for republishing. See [docs/PROVENANCE.md](docs/PROVENANCE.md).
 

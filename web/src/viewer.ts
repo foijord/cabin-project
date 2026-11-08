@@ -6,6 +6,7 @@ import {
   BOUNDARY_SAMPLE_M,
   densifyClosedRing,
 } from "./drape";
+import { buildPhotoModels } from "./photoBuildings";
 import {
   applyExaggeration,
   applyOverlayScale,
@@ -28,6 +29,7 @@ export interface Viewer {
   setGrid(enabled: boolean): void;
   setParcels(enabled: boolean): void;
   setBuildings(enabled: boolean): void;
+  setPhotoModels(enabled: boolean): void;
   frameProperty(): void;
   frameContext(): void;
   dispose(): void;
@@ -97,6 +99,8 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
   buildingGroup.name = "buildings";
   scene.add(buildingGroup);
   const markers = addBuildings(sceneData, buildingGroup);
+  const photoModels = buildPhotoModels(sceneData, grid);
+  buildingGroup.add(photoModels.group);
   const northMarker = addNorthMarker(grid, width, height, cell);
   scene.add(northMarker.object);
 
@@ -125,6 +129,9 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     for (const line of contextLines) drapeObject(line, exaggeration);
     for (const marker of markers) {
       marker.object.position.y = marker.base * exaggeration;
+    }
+    for (const model of photoModels.bases) {
+      model.object.position.y = model.base * exaggeration;
     }
     northMarker.object.position.y = northMarker.base * exaggeration + 0.8;
     controls.target.y = (sceneData.property.terrainM ?? 4) * exaggeration;
@@ -246,8 +253,19 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     requestAnimationFrame(animate);
   }
 
+  let showPhotoModels = true;
+  function applyPhotoModels() {
+    photoModels.group.visible = showPhotoModels;
+    for (const marker of markers) {
+      if (photoModels.modeledNumbers.has(marker.building.bygningsnummer)) {
+        marker.object.visible = !showPhotoModels;
+      }
+    }
+  }
+
   resize();
   refreshHeights();
+  applyPhotoModels();
   frameContext();
   if (new URLSearchParams(window.location.search).get("topdown") === "1") {
     const px = sceneData.property.x;
@@ -316,6 +334,10 @@ export function createViewer(canvas: HTMLCanvasElement, sceneData: Scene, grid: 
     },
     setBuildings(enabled: boolean) {
       buildingGroup.visible = enabled;
+    },
+    setPhotoModels(enabled: boolean) {
+      showPhotoModels = enabled;
+      applyPhotoModels();
     },
     frameProperty,
     frameContext,

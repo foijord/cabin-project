@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { photoBuildings } from "./photoBuildings";
 import type { Scene } from "./types";
 import { createViewer, type Viewer } from "./viewer";
 
@@ -62,7 +63,7 @@ function fillPanel(scene: Scene) {
     facts.innerHTML = `
       <p class="eyebrow">${escapeHtml(property.postnummer)} ${escapeHtml(property.poststed)} · ${escapeHtml(titleCase(property.kommunenavn))}</p>
       <h1>${escapeHtml(property.adressetekst)}</h1>
-      <p class="lede">Public terrain, the registered parcel, and building points. A planning picture, not a survey and not a legal map.</p>
+      <p class="lede">Public terrain, the registered parcel, building points, and approximate models of the cabin, the annex and the water-side outbuilding. A planning picture, not a survey and not a legal map.</p>
       <dl>
         <div><dt>Matrikkel</dt><dd>${escapeHtml(property.kommunenummer)}–${escapeHtml(property.matrikkelnummer)}</dd></div>
         <div><dt>Bruksnavn</dt><dd>${escapeHtml(property.bruksnavn)}</dd></div>
@@ -75,14 +76,22 @@ function fillPanel(scene: Scene) {
   }
   const list = document.querySelector("#buildings");
   if (list) {
+    const modeled = new Map(photoBuildings.buildings.map((model) => [model.registerBygningsnummer, model]));
     list.innerHTML = onParcel
       .map((building) => {
-        const posture = building.standingInRegister ? "Drawn as a post" : "Drawn as a ring, not as a standing building";
+        const model = modeled.get(building.bygningsnummer);
+        const posture = model
+          ? `Photo model “${escapeHtml(model.label)}”, role ${escapeHtml(model.role)}. Outline follows OpenStreetMap way ${model.osmWayId}. Wall ${model.wallHeightM.toFixed(1)} m and roof rise ${model.roofRiseM.toFixed(2)} m are estimates, not measured heights.`
+          : building.standingInRegister
+            ? "Drawn as a post. No footprint and no roof height in the open data."
+            : "Drawn as a ring, not as a standing building. No footprint and no roof height in the open data.";
+        const guess = model ? `<span>${escapeHtml(model.identification)}</span>` : "";
         return `<li>
           <strong>${escapeHtml(building.bygningstypeNavn)}</strong>
           <span>${escapeHtml(building.bygningsstatus)} · ${escapeHtml(building.bygningsstatusNavn)}</span>
           <span>No. ${escapeHtml(building.bygningsnummer)} · position verified: ${building.stedfestingVerifisert ? "yes" : "no"}</span>
-          <span>${posture}. No footprint and no roof height in the open data.</span>
+          <span>${posture}</span>
+          ${guess}
         </li>`;
       })
       .join("");
@@ -101,7 +110,7 @@ function fillPanel(scene: Scene) {
       <p><strong>Acquisition.</strong> The grid is filtered to Søgne 2013, laser project 30, the intersecting project flagged <code>BEST_OPEN=1</code>. Last flight 30 April 2013, ordered density 3 points/m², natural-neighbour DTM. Kristiansand 2020 also intersects the point and was not used.</p>
       <p><strong>Address.</strong> Kartverket address API, one hit for Kalsneset 27. ${property.lat.toFixed(6)}° N, ${property.lon.toFixed(6)}° E in ${escapeHtml(scene.terrain.geographicCrsName)}. Register id ${escapeHtml(property.adresseid)}. Position verified: ${property.stedfestingVerifisert ? "yes" : "no"}.</p>
       <p><strong>Parcel.</strong> Matrikkelen eiendomskart teig, id ${escapeHtml(teig.teigId)}. datafangstdato ${escapeHtml(teig.datafangstdato ?? "not stated")}. Updated ${escapeHtml(teig.oppdateringsdato ?? "not stated")}. Neighbouring lines are the other teigs returned for this extract. No owner names are shown.</p>
-      <p><strong>Buildings and photos.</strong> Open data here is building points, not outlines. FKB-Bygning footprints and Norge i bilder orthophotos are under the Norge digitalt licence and are not included. The published INSPIRE building WFS returned “unknown application” on ${when}. Nothing in the model is a measured roof height.</p>
+      <p><strong>Buildings and photos.</strong> Open Matrikkelen data here is still building points, not official footprints. FKB-Bygning was not added. The three photo models use OpenStreetMap outlines that carry the same building numbers, draped on this DTM. Wall heights, roof shapes and colours are estimates. The orthophoto was looked at in the public Norge i bilder viewer and is not bundled: that imagery is Norge digitalt. See docs/BUILDINGS.md. Nothing in the model is a surveyed roof height.</p>
       <p><strong>Licence.</strong> Address, parcel and building points are CC BY 4.0. The terrain is © Kartverket, Søgne 2013. Project metadata marks that project TILGANG 1. The raster catalogue row for the same 0.5 m grid marks TILGANG 2, which the høydedata FAQ describes as closed. Those labels disagree, so this grid is not treated as cleared open data. © Kartverket.</p>
     `;
   }
@@ -134,6 +143,7 @@ function wireControls(viewer: Viewer) {
   const grid = document.querySelector<HTMLInputElement>("#grid");
   const parcels = document.querySelector<HTMLInputElement>("#parcels");
   const buildings = document.querySelector<HTMLInputElement>("#show-buildings");
+  const photo = document.querySelector<HTMLInputElement>("#photo-models");
 
   const syncExaggeration = () => {
     const value = Number(exag?.value ?? 1);
@@ -149,6 +159,7 @@ function wireControls(viewer: Viewer) {
   grid?.addEventListener("change", () => viewer.setGrid(grid.checked));
   parcels?.addEventListener("change", () => viewer.setParcels(parcels.checked));
   buildings?.addEventListener("change", () => viewer.setBuildings(buildings.checked));
+  photo?.addEventListener("change", () => viewer.setPhotoModels(photo.checked));
   document.querySelector("#frame-property")?.addEventListener("click", () => viewer.frameProperty());
   document.querySelector("#frame-context")?.addEventListener("click", () => viewer.frameContext());
   document.querySelector("#reset-view")?.addEventListener("click", () => {
